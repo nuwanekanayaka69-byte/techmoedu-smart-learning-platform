@@ -1,5 +1,15 @@
 # 03 - High-Fidelity Mockups
 
-This folder contains high-fidelity UI mockups for the TechmoEDU Smart Learning Platform.
+# High-Fidelity Mockups
 
-These mockups represent the final visual design before development.
+## Completed
+
+- ✅ Home Page v1
+
+## Planned
+
+- Login Page
+- Student Dashboard
+- Teacher Dashboard
+- Admin Dashboard
+- Parent Dashboard
