@@ -1,46 +1,49 @@
-# Chapter 04 – Database Design
+# 04 - Database Design
 
-## Overview
-
-This chapter describes the database design of the TechmoEDU Smart Learning Platform.
-
-The system uses Firebase Firestore as the production database.
-
-The SQL schema and ER Diagram are provided for documentation and system design purposes.
+> **Project Blueprint Review**
 
 ---
 
-## Files
+# Overview
+
+This folder contains the complete database design documentation for the TechmoEDU Smart Learning Platform.
+
+The database has been designed using **Firebase Firestore (NoSQL)** to provide scalability, real-time synchronization, security, and cloud-native performance.
+
+---
+
+# Database Documents
 
 | File | Description |
 |------|-------------|
-| er-diagram.png | Entity Relationship Diagram |
-| database.sql | SQL Reference Schema |
+| 01-Entity-List.md | List of all database entities (collections). |
+| 02-Entity-Relationships.md | Relationships between entities. |
+| 03-Firestore-Collections.md | Collection structure and fields. |
+| 04-ER-Diagram.drawio | Editable ER Diagram (Draw.io). |
+| 05-ER-Diagram.png | ER Diagram preview image. |
+| 06-Firebase-Security-Notes.md | Firebase security design. |
 
 ---
 
-## Main Entities
-
-- Users
-- Students
-- Teachers
-- Classes
-- Attendance
-- Exams
-- Marks
-- Payments
-- Learning Materials
-- Announcements
-
----
-
-## Database Platform
-
-Production Database
+# Database Technology
 
 - Firebase Firestore
+- Firebase Authentication
+- Firebase Storage
 
-Documentation Database
+---
 
-- SQL Schema
-- ER Diagram
+# Design Goals
+
+- Scalability
+- Security
+- Performance
+- Maintainability
+- Cloud Native
+- Multi-Institute Support
+
+---
+
+**Status:** In Progress
+
+**Version:** 1.0
