@@ -12,28 +12,30 @@
 | Current Phase | Blueprint Review |
 ---
 
-# Vision Statement
+---
+
+# Mission Statement
 
 ## English
 
-> To become Sri Lanka's leading smart learning platform by empowering teachers and students through innovative, accessible, and technology-driven education.
-## Why this Vision?
+> To provide a secure, scalable, and user-friendly smart learning platform that enables teachers to deliver quality education, empowers students to learn anytime and anywhere, supports parents in monitoring academic progress, and promotes lifelong learning for individuals, educational institutions, and communities through innovative digital technologies.
 
-This vision reflects the long-term goal of transforming TechmoEDU from an ICT learning platform into a scalable education technology ecosystem that can support multiple subjects, teachers, institutions, and learners across Sri Lanka.
 ## Sinhala
 
-> ශ්‍රී ලංකාවේ ගුරුවරුන්ට සහ සිසුන්ට නවීන, ආරක්ෂිත සහ බුද්ධිමත් ඉගෙනුම් අත්දැකීමක් ලබාදෙන ප්‍රමුඛතම Smart Learning Platform එක බවට පත්වීම.
-> මෙම Vision එකෙන් TechmoEDU එක ICT Platform එකකින් ඔබ්බට ගොස්, ශ්‍රී ලංකාවේ විවිධ විෂයයන්, ගුරුවරුන්, අධ්‍යාපන ආයතන සහ සිසුන් සඳහා පුළුල් කළ හැකි EdTech Platform එකක් බවට පත්වීමේ දිගුකාලීන අරමුණ නිරූපණය කරයි.
+> ගුරුවරුන්ට ගුණාත්මක ඉගෙනුම් අත්දැකීම් සැපයීමට, සිසුන්ට ඕනෑම වේලාවක ඕනෑම ස්ථානයක සිට ඉගෙනීමට, දෙමාපියන්ට දරුවන්ගේ අධ්‍යාපන ප්‍රගතිය නිරීක්ෂණය කිරීමට සහ නවීන ඩිජිටල් තාක්ෂණය ඔස්සේ පුද්ගලයන්, අධ්‍යාපන ආයතන සහ සමස්ත සමාජය සඳහා ජීවිත කාලය පුරා ඉගෙනුම ප්‍රවර්ධනය කිරීමට හැකි ආරක්ෂිත, පුළුල් කළ හැකි සහ භාවිතයට පහසු Smart Learning Platform එකක් නිර්මාණය කිරීම.
 > ---
 
-# Review
+---
+
+# Mission Review
 
 | Question | Answer |
 |----------|--------|
-| Does the project vision support long-term growth? | ✅ Yes |
-| Can the platform expand beyond ICT? | ✅ Yes |
-| Can multiple teachers use this platform in the future? | ✅ Yes |
-| Is the vision aligned with the TechmoEDU brand? | ✅ Yes |
+| Does the mission support teachers? | ✅ Yes |
+| Does the mission support students? | ✅ Yes |
+| Does the mission support parents? | ✅ Yes |
+| Does the mission promote lifelong learning? | ✅ Yes |
+| Can the platform scale to multiple institutions? | ✅ Yes |
 
 ## Status
 
