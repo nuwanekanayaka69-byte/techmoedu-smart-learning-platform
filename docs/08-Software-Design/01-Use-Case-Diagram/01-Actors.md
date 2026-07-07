@@ -1,11 +1,3 @@
-# 01 - Actors
-
-> **Chapter 08 – Software Design**
->
-> **Section:** Use Case Diagram
-
----
-
 # Introduction
 
 This document defines the primary actors of the TechmoEDU Smart Learning Platform.
