@@ -16,6 +16,19 @@
 | Status | Draft |
 | Author | Nuwan S. Ekanayaka |
 | Last Updated | 2026 |
+
+## Table of Contents
+
+1. Introduction
+2. Actor Overview
+3. Super Administrator
+4. Institute Administrator
+5. Teacher
+6. Student
+7. Parent
+8. Actor Relationship Summary
+9. Access Level Matrix
+10. Security Model
 # Introduction
 
 This document defines the primary actors of the TechmoEDU Smart Learning Platform.
