@@ -79,3 +79,11 @@ or
 ---
 
 ## End of Chapter 05
+## Architecture Diagram Index
+
+| No | Diagram | File |
+|----|---------|------|
+| 01 | System Context Diagram | diagrams/01-System-Context.drawio |
+| 02 | High-Level Architecture | diagrams/02-High-Level-Architecture.drawio |
+| 03 | Firebase Architecture | diagrams/03-Firebase-Architecture.drawio |
+| 04 | Deployment Architecture | diagrams/04-Deployment-Architecture.drawio |
