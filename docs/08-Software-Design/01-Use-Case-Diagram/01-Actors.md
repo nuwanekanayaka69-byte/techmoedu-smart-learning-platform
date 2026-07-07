@@ -1,3 +1,21 @@
+# 01 - Actors
+
+> **Chapter 08 – Software Design**
+>
+> **Section:** Use Case Diagram
+
+---
+
+## Document Information
+
+| Item | Details |
+|------|---------|
+| Document | Actors |
+| Project | TechmoEDU Smart Learning Platform |
+| Version | 1.0 |
+| Status | Draft |
+| Author | Nuwan S. Ekanayaka |
+| Last Updated | 2026 |
 # Introduction
 
 This document defines the primary actors of the TechmoEDU Smart Learning Platform.
