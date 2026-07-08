@@ -1,0 +1,35 @@
+@startuml
+left to right direction
+title Super Admin Use Case Diagram
+actor "Super\nAdministrator" as SA
+rectangle "TechmoEDU Smart Learning Platform" {
+ usecase "Login" as U1
+ usecase "Manage Institutes" as U2
+ usecase "Manage Institute Admins" as U3
+ usecase "Manage Users & Roles" as U4
+ usecase "System Settings" as U5
+ usecase "View Audit Logs" as U6
+ usecase "Backup / Restore" as U7
+ usecase "View Platform Analytics" as U8
+ usecase "Manage Security Policies" as U9
+ usecase "Verify Credentials" as U10
+ usecase "Check Role & Permissions" as U11
+}
+SA --> U1
+SA --> U2
+SA --> U3
+SA --> U4
+SA --> U5
+SA --> U6
+SA --> U7
+SA --> U8
+SA --> U9
+U1 ..> U10 : <<include>>
+U10 ..> U11 : <<include>>
+U2 ..> U11 : <<include>>
+U3 ..> U11 : <<include>>
+U4 ..> U11 : <<include>>
+U7 ..> U5 : <<extend>>
+U6 ..> U5 : <<extend>>
+U9 ..> U5 : <<extend>>
+@enduml

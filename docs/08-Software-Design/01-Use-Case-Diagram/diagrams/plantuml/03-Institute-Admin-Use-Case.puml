@@ -1,0 +1,38 @@
+@startuml
+left to right direction
+title Institute Admin Use Case Diagram
+actor "Institute\nAdministrator" as IA
+rectangle "TechmoEDU Smart Learning Platform" {
+ usecase "Login" as U1
+ usecase "Manage Teachers" as U2
+ usecase "Manage Students" as U3
+ usecase "Manage Parents" as U4
+ usecase "Manage Courses" as U5
+ usecase "Manage Classes" as U6
+ usecase "Enroll Students" as U7
+ usecase "Manage Fees" as U8
+ usecase "Generate Reports" as U9
+ usecase "Publish Announcements" as U10
+ usecase "Manage Resources" as U11
+ usecase "Verify Credentials" as U12
+ usecase "Check Role & Permissions" as U13
+}
+IA --> U1
+IA --> U2
+IA --> U3
+IA --> U4
+IA --> U5
+IA --> U6
+IA --> U7
+IA --> U8
+IA --> U9
+IA --> U10
+IA --> U11
+U1 ..> U12 : <<include>>
+U12 ..> U13 : <<include>>
+U2 ..> U13 : <<include>>
+U3 ..> U13 : <<include>>
+U5 ..> U13 : <<include>>
+U9 ..> U8 : <<extend>>
+U10 ..> U5 : <<extend>>
+@enduml

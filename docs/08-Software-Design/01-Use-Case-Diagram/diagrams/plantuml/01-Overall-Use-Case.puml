@@ -1,0 +1,62 @@
+@startuml
+left to right direction
+title TechmoEDU Smart Learning Platform - Overall Use Case Diagram
+actor "Super\nAdministrator" as SA
+actor "Institute\nAdministrator" as IA
+actor Teacher as T
+actor Student as S
+actor Parent as P
+rectangle "TechmoEDU Smart Learning Platform" {
+  usecase "Login" as UC1
+  usecase "Update Profile" as UC2
+  usecase "Manage Users" as UC3
+  usecase "Manage Courses" as UC4
+  usecase "Enroll Students" as UC5
+  usecase "Manage Attendance" as UC6
+  usecase "Manage Exams & Marks" as UC7
+  usecase "View Results" as UC8
+  usecase "Manage / View Fees" as UC9
+  usecase "Learning Resources" as UC10
+  usecase "Announcements" as UC11
+  usecase "Reports & Analytics" as UC12
+  usecase "System Settings" as UC13
+  usecase "Backup / Restore" as UC14
+  usecase "Audit Logs" as UC15
+  usecase "Verify Credentials" as UC16
+  usecase "Check Role & Permissions" as UC17
+}
+SA --> UC1
+SA --> UC3
+SA --> UC13
+SA --> UC14
+SA --> UC15
+SA --> UC12
+IA --> UC1
+IA --> UC4
+IA --> UC5
+IA --> UC6
+IA --> UC9
+IA --> UC11
+IA --> UC12
+T --> UC1
+T --> UC6
+T --> UC7
+T --> UC10
+S --> UC1
+S --> UC8
+S --> UC9
+S --> UC10
+P --> UC1
+P --> UC8
+P --> UC9
+P --> UC11
+UC1 ..> UC16 : <<include>>
+UC16 ..> UC17 : <<include>>
+UC3 ..> UC17 : <<include>>
+UC4 ..> UC17 : <<include>>
+UC6 ..> UC17 : <<include>>
+UC7 ..> UC17 : <<include>>
+UC9 ..> UC17 : <<include>>
+UC14 ..> UC13 : <<extend>>
+UC15 ..> UC13 : <<extend>>
+@enduml

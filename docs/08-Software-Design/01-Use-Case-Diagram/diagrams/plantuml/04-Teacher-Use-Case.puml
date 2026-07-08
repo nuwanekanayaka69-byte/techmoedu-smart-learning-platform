@@ -1,0 +1,37 @@
+@startuml
+left to right direction
+title Teacher Use Case Diagram
+actor Teacher as T
+rectangle "TechmoEDU Smart Learning Platform" {
+ usecase "Login" as U1
+ usecase "Update Profile" as U2
+ usecase "View Assigned Courses" as U3
+ usecase "Record Attendance" as U4
+ usecase "Edit Attendance" as U5
+ usecase "Record Marks" as U6
+ usecase "Upload Learning Resources" as U7
+ usecase "Publish Assignments" as U8
+ usecase "View Class Reports" as U9
+ usecase "View / Publish Notices" as U10
+ usecase "Verify Credentials" as U11
+ usecase "Check Course Permission" as U12
+}
+T --> U1
+T --> U2
+T --> U3
+T --> U4
+T --> U5
+T --> U6
+T --> U7
+T --> U8
+T --> U9
+T --> U10
+U1 ..> U11 : <<include>>
+U11 ..> U12 : <<include>>
+U4 ..> U12 : <<include>>
+U6 ..> U12 : <<include>>
+U7 ..> U12 : <<include>>
+U5 ..> U4 : <<extend>>
+U8 ..> U7 : <<extend>>
+U9 ..> U6 : <<extend>>
+@enduml
