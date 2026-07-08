@@ -1,0 +1,45 @@
+@startuml
+title TechmoEDU Smart Learning Platform - Student Registration Activity
+
+|Institute Administrator|
+start
+:Open Student Management;
+:Click Add Student;
+:Enter Student Details;
+:Submit Registration;
+
+|TechmoEDU System|
+:Validate Required Fields;
+
+if (Input valid?) then (Yes)
+  if (Duplicate email or student?) then (Yes)
+    :Show Duplicate Account Error;
+    |Institute Administrator|
+    :Edit Student Details;
+    stop
+  else (No)
+    :Generate Student ID;
+    :Create Firebase Authentication Account;
+    if (Auth account created?) then (Yes)
+      :Create Student Profile in Firestore;
+      if (Link Parent Now?) then (Yes)
+        :Link Parent Account;
+      else (No)
+      endif
+      :Display Success Confirmation;
+      stop
+    else (No)
+      :Show Account Creation Error;
+      |Institute Administrator|
+      :Retry Registration;
+      stop
+    endif
+  endif
+else (No)
+  :Show Validation Errors;
+  |Institute Administrator|
+  :Correct Required Fields;
+  stop
+endif
+
+@enduml
