@@ -1,0 +1,38 @@
+@startuml
+title TechmoEDU Smart Learning Platform - Student Login Activity
+
+|Student / User|
+start
+:Open Login Page;
+:Enter Email and Password;
+:Click Login;
+
+|TechmoEDU System|
+:Validate Input;
+
+if (Input valid?) then (Yes)
+  :Verify Credentials using Firebase Authentication;
+  if (Credentials valid?) then (Yes)
+    :Load User Role and Permissions;
+    :Redirect to Role Dashboard;
+    :Record Login Audit Log;
+    stop
+  else (No)
+    :Show Login Failed Message;
+    |Student / User|
+    :Retry Login;
+    stop
+  endif
+else (No)
+  :Show Validation Error;
+  |Student / User|
+  :Correct Email / Password Fields;
+  stop
+endif
+
+|Student / User|
+:Forgot Password Optional;
+|TechmoEDU System|
+:Send Password Reset Email;
+
+@enduml
