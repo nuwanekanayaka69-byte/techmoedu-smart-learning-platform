@@ -84,3 +84,29 @@ diagrams/
 ## Version
 
 Version 1.0
+---
+
+# Revision History
+
+| Version | Date | Author | Description |
+|----------|------------|--------------------|--------------------------|
+| 1.0 | 2026-07 | Nuwan S. Ekanayaka | Initial Activity List |
+
+---
+
+# Review Status
+
+| Role | Status |
+|------|--------|
+| System Analyst | Approved |
+| Software Architect | Approved |
+| Project Owner | Approved |
+
+---
+
+# Related Documents
+
+- 01-Use-Case-Diagram
+- 02-Activity-Descriptions
+- System Architecture
+- Database Design
