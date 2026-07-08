@@ -1,7 +1,41 @@
 # 02 - Activity Descriptions
-
+| Item | Value |
+|------|--------|
+| Activity ID | AD-001 |
+| Activity Name | Student Login Activity |
+| Priority | High |
+| Complexity | Low |
+| Estimated Duration | 5 Seconds |
 > **Chapter 08 – Software Design**
 >
+> ## Business Rules
+
+BR-001
+
+Only active users are allowed to log in.
+
+BR-002
+
+Only authenticated users may access dashboards.
+
+BR-003
+
+Role-based permissions must be applied after successful login.
+## Related Services
+
+- Firebase Authentication
+- Cloud Firestore
+- Cloud Functions
+## Future Improvements
+
+- Multi-factor Authentication
+
+- Google Login
+
+- Biometric Login
+
+- Session Timeout
+
 > **Section:** Activity Diagram
 
 ---
