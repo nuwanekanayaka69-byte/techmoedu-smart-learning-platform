@@ -1,0 +1,57 @@
+@startuml
+title TechmoEDU Smart Learning Platform - Attendance Marking Activity
+
+|Teacher|
+start
+:Open Teacher Dashboard;
+:Select Assigned Class;
+:Open Attendance Module;
+:Select Date;
+:Mark Present / Absent / Late;
+:Submit Attendance;
+
+|TechmoEDU System|
+:Verify Teacher Permission;
+
+if (Teacher Assigned?) then (Yes)
+  :Load Student List;
+  if (Attendance Already Exists?) then (Yes)
+    if (Edit Existing Record?) then (Yes)
+      :Load Existing Attendance;
+      |Teacher|
+      :Update Attendance Entries;
+    else (No)
+      |Teacher|
+      :Select Another Date;
+      stop
+    endif
+  endif
+
+  |TechmoEDU System|
+  :Validate Attendance Entries;
+
+  if (Entries Valid?) then (Yes)
+    :Save Attendance Records;
+    if (Save Successful?) then (Yes)
+      :Generate Attendance Summary;
+      :Update Student / Parent View;
+      :Display Success Message;
+      stop
+    else (No)
+      :Show Save Failure Error;
+      |Teacher|
+      :Retry Submission;
+      stop
+    endif
+  else (No)
+    :Show Validation Error;
+    |Teacher|
+    :Correct Attendance Entries;
+    stop
+  endif
+else (No)
+  :Show Permission Denied Error;
+  stop
+endif
+
+@enduml
