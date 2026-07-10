@@ -1,0 +1,114 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam activity {
+  BackgroundColor #EAF3FF
+  BorderColor #1F4E79
+  DiamondBackgroundColor #FFF2CC
+  DiamondBorderColor #BF9000
+  StartColor #2E75B6
+  EndColor #C00000
+}
+title TechmoEDU Smart Learning Platform\n06 – Fee Payment Activity Diagram
+
+|Student / Parent|
+start
+:Login to TechmoEDU;
+|TechmoEDU System|
+:Authenticate User;
+if (Credentials valid?) then (Yes)
+  |Student / Parent|
+  :Open Fee Payment Module;
+  :Select Institute, Student and Course;
+  |TechmoEDU System|
+  :Verify role and parent-student relationship;
+  if (Access authorized?) then (Yes)
+    :Load outstanding fee records;
+    if (Outstanding fees available?) then (Yes)
+      |Student / Parent|
+      :Select fee invoice;
+      |TechmoEDU System|
+      :Calculate and display payable amount;
+      |Student / Parent|
+      :Review invoice details;
+      :Choose payment method;
+      if (Payment method?) then (Online)
+        |TechmoEDU System|
+        :Create transaction and reference;
+        |Payment Gateway / Bank|
+        :Open secure payment gateway;
+        |Student / Parent|
+        :Enter payment details;
+        |Payment Gateway / Bank|
+        :Validate and authorize transaction;
+        if (Payment successful?) then (Yes)
+          |TechmoEDU System|
+          :Verify gateway response;
+          :Set status CONFIRMED;
+        else (No)
+          |TechmoEDU System|
+          :Set status FAILED;
+          |Student / Parent|
+          :Display failure message;
+          stop
+        endif
+      elseif (Bank Deposit)
+        |Student / Parent|
+        :Enter deposit details;
+        :Upload payment slip;
+        |TechmoEDU System|
+        :Create pending payment record;
+        |Institute Admin|
+        :Review slip, reference, amount and date;
+        if (Evidence valid?) then (Yes)
+          :Approve payment;
+          |TechmoEDU System|
+          :Set status CONFIRMED;
+        else (No)
+          :Reject payment;
+          |TechmoEDU System|
+          :Send rejection reason;
+          stop
+        endif
+      else (Cash)
+        |TechmoEDU System|
+        :Create pending cash record;
+        |Institute Admin|
+        :Receive cash and verify invoice;
+        :Approve payment;
+        |TechmoEDU System|
+        :Set status CONFIRMED;
+      endif
+      :Validate paid amount;
+      if (Full payment?) then (Full)
+        :Mark invoice PAID;
+        :Set balance to zero;
+      else (Partial)
+        :Mark invoice PARTIALLY PAID;
+        :Update remaining balance;
+      endif
+      :Save transaction;
+      :Update student fee account;
+      :Generate digital receipt;
+      fork
+        :Notify student;
+      fork again
+        :Notify parent;
+      fork again
+        :Notify institute admin;
+      end fork
+      |Student / Parent|
+      :View / download receipt;
+    else (No)
+      |TechmoEDU System|
+      :Display no outstanding fees;
+    endif
+  else (No)
+    :Display unauthorized access;
+  endif
+else (No)
+  :Display login error;
+endif
+stop
+@enduml
