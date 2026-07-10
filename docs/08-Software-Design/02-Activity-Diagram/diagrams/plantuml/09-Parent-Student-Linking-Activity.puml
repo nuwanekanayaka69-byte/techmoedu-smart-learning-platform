@@ -1,0 +1,89 @@
+@startuml
+title TechmoEDU Smart Learning Platform
+09 - Parent Student Linking Activity Diagram
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #EAF3FF
+  BorderColor #1F4E79
+  FontColor #1F1F1F
+  DiamondBackgroundColor #FFF2CC
+  DiamondBorderColor #BF9000
+  StartColor #1F4E79
+  EndColor #C00000
+}
+skinparam partition {
+  BorderColor #1F4E79
+  FontColor #1F1F1F
+}
+
+|Parent|
+start
+:Login to TechmoEDU;
+
+|TechmoEDU System|
+:Authenticate Parent Account;
+
+if (Credentials Valid?) then (Yes)
+
+  |Parent|
+  :Open Parent-Student Linking Module;
+  :Enter Student ID / Registration Number;
+
+  |TechmoEDU System|
+  :Search Student Record;
+
+  if (Student Found?) then (Yes)
+    :Check Parent Child-Link Limit;
+
+    if (Link Limit Reached?) then (Yes)
+      :Display Maximum Children Limit Message;
+      stop
+    else (No)
+      |Parent|
+      :Submit Link Request;
+
+      |TechmoEDU System|
+      :Send Approval Request to Student;
+
+      |Student|
+      :Review Parent Link Request;
+
+      if (Approve Request?) then (Yes)
+        |TechmoEDU System|
+        :Verify Student, Parent and Institute Relationship;
+
+        if (Manual Review Required?) then (Yes)
+          |Institute Admin|
+          :Review Supporting Information;
+          :Approve Relationship;
+        endif
+
+        |TechmoEDU System|
+        :Create Parent-Student Link;
+        :Update Parent Permissions;
+        :Record Audit Log;
+        :Send Confirmation Notification;
+
+      else (No)
+        |TechmoEDU System|
+        :Reject Link Request;
+        :Notify Parent;
+      endif
+
+    endif
+
+  else (No)
+    :Display Student Not Found Error;
+    |Parent|
+    :Re-enter Student ID;
+    detach
+  endif
+
+else (No)
+  :Display Login Error;
+endif
+
+stop
+@enduml
