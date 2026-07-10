@@ -1,0 +1,15 @@
+@startuml
+start
+:Teacher Login;
+:Open Resource Module;
+:Select Course;
+:Choose File;
+if (Valid?) then (Yes)
+:Upload Resource;
+:Save Metadata;
+:Notify Students;
+stop
+else
+:Validation Error;
+endif
+@enduml
