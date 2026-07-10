@@ -1,0 +1,94 @@
+@startuml
+title TechmoEDU Smart Learning Platform
+08 - Announcement Publishing Activity Diagram
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #EAF3FF
+  BorderColor #1F4E79
+  FontColor #1F1F1F
+  DiamondBackgroundColor #FFF2CC
+  DiamondBorderColor #BF9000
+  StartColor #1F4E79
+  EndColor #C00000
+}
+skinparam partition {
+  BorderColor #1F4E79
+  FontColor #1F1F1F
+}
+
+|Teacher / Institute Admin|
+start
+:Login to TechmoEDU;
+
+|TechmoEDU System|
+:Authenticate User;
+
+if (Credentials Valid?) then (Yes)
+
+  |Teacher / Institute Admin|
+  :Open Announcement Module;
+  :Select Institute / Course / Audience;
+  :Compose Announcement;
+  note right
+    Title
+    Message
+    Priority
+    Expiry Date
+  end note
+  :Add Attachment or Link (Optional);
+
+  |TechmoEDU System|
+  :Validate Required Fields;
+  :Validate File Type and Size;
+  :Verify Publishing Permission;
+
+  if (Announcement Valid?) then (Yes)
+
+    |Teacher / Institute Admin|
+    :Preview Announcement;
+
+    |TechmoEDU System|
+    if (Publish Now?) then (Yes)
+      :Publish Announcement;
+    else (Schedule)
+      |Teacher / Institute Admin|
+      :Set Publish Date and Time;
+      |TechmoEDU System|
+      :Save Scheduled Announcement;
+      :Publish at Scheduled Time;
+    endif
+
+    :Store Announcement Record;
+
+    fork
+      |Notification Service|
+      :Send In-App Notification;
+    fork again
+      :Send Email Notification;
+    fork again
+      :Send SMS Notification (Optional);
+    end fork
+
+    |Student / Parent|
+    :Receive Notification;
+    :View Announcement;
+
+    |TechmoEDU System|
+    :Record Audit Log;
+    :Update Delivery Status;
+
+  else (No)
+    :Display Validation Errors;
+    |Teacher / Institute Admin|
+    :Correct Announcement Details;
+    detach
+  endif
+
+else (No)
+  :Display Login Error;
+endif
+
+stop
+@enduml
