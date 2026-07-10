@@ -1,0 +1,53 @@
+@startuml
+title TechmoEDU Smart Learning Platform - Marks Recording Activity
+
+|Teacher|
+start
+:Open Teacher Dashboard;
+:Select Assigned Class;
+:Select Examination;
+:Enter Student Marks;
+:Review Marks;
+:Submit Marks;
+
+|TechmoEDU System|
+:Verify Teacher Permission;
+
+if (Teacher Assigned?) then (Yes)
+  :Load Student and Exam Data;
+  if (Exam Active?) then (Yes)
+    :Validate Marks Range;
+    if (Marks Valid?) then (Yes)
+      :Calculate Grade / Percentage;
+      :Save Marks to Firestore;
+      if (Save Successful?) then (Yes)
+        if (Publish Results Now?) then (Yes)
+          :Notify Student / Parent;
+        else (No)
+        endif
+        :Display Success Message;
+        stop
+      else (No)
+        :Show Save Failure Error;
+        |Teacher|
+        :Retry Submission;
+        stop
+      endif
+    else (No)
+      :Show Invalid Marks Error;
+      |Teacher|
+      :Correct Marks;
+      stop
+    endif
+  else (No)
+    :Show Exam Unavailable Error;
+    |Teacher|
+    :Select Another Examination;
+    stop
+  endif
+else (No)
+  :Show Permission Denied Error;
+  stop
+endif
+
+@enduml
