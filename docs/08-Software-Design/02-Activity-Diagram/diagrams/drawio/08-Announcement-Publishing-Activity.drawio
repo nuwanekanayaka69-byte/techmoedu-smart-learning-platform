@@ -1,0 +1,150 @@
+<mxfile host="app.diagrams.net" modified="2026-07-10T00:00:00.000Z" agent="OpenAI" version="24.7.17">
+  <diagram id="announcementPublishing" name="08-Announcement-Publishing-Activity">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="TechmoEDU Smart Learning Platform&#xa;08 - Announcement Publishing Activity Diagram" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#1F1F1F;" vertex="1" parent="1">
+          <mxGeometry x="180" y="20" width="1250" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlanes -->
+        <mxCell id="lane1" value="Teacher / Institute Admin" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#D9EAF7;strokeColor=#1F4E79;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="100" width="360" height="930" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane2" value="TechmoEDU System" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#EAF3FF;strokeColor=#1F4E79;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="440" y="100" width="430" height="930" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane3" value="Student / Parent" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#E2F0D9;strokeColor=#548235;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="870" y="100" width="360" height="930" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane4" value="Notification Service" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#E4DFEC;strokeColor=#7030A0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="100" width="300" height="930" as="geometry"/>
+        </mxCell>
+
+        <!-- Nodes -->
+        <mxCell id="start" value="" style="ellipse;html=1;aspect=fixed;fillColor=#1F4E79;strokeColor=#1F4E79;" vertex="1" parent="1">
+          <mxGeometry x="225" y="130" width="28" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="login" value="Login to TechmoEDU" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="145" y="180" width="200" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="auth" value="Authenticate User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="550" y="180" width="210" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cred" value="Credentials Valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="255" width="150" height="92" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="loginerr" value="Display Login Error" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4CCCC;strokeColor=#C00000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="935" y="275" width="180" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="openmodule" value="Open Announcement Module" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="135" y="375" width="220" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="selectscope" value="Select Institute / Course / Audience" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="450" width="250" height="62" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="compose" value="Compose Announcement&#xa;Title, Message, Priority, Expiry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="535" width="250" height="72" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="attachment" value="Add Attachment / Link&#xa;(Optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="135" y="630" width="220" height="62" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="validate" value="Validate Required Fields, File Type, Size and Permissions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="530" y="535" width="250" height="72" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="valid" value="Announcement Valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="585" y="635" width="150" height="92" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="valerr" value="Display Validation Errors" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4CCCC;strokeColor=#C00000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="935" y="655" width="190" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="preview" value="Preview Announcement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="145" y="745" width="200" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="publishdecision" value="Publish Now?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="585" y="745" width="150" height="92" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="schedule" value="Set Publish Date and Time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="135" y="850" width="220" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="save" value="Save Announcement Record" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="545" y="860" width="220" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="publish" value="Publish Announcement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="545" y="930" width="220" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="notify" value="Send In-App / Email / SMS Notification" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E4DFEC;strokeColor=#7030A0;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="850" width="220" height="62" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="receive" value="Receive and View Announcement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#548235;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="930" y="930" width="230" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="audit" value="Record Audit Log and Delivery Status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="535" y="995" width="240" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="endouter" value="" style="ellipse;html=1;aspect=fixed;fillColor=#FFFFFF;strokeColor=#C00000;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="1000" width="34" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="endinner" value="" style="ellipse;html=1;aspect=fixed;fillColor=#C00000;strokeColor=#C00000;" vertex="1" parent="1">
+          <mxGeometry x="1028" y="1008" width="18" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="note1" value="BR-01: Only authorized Teachers and Institute Admins can publish announcements." style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="160" width="220" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="note2" value="BR-02: Expired announcements are automatically archived and hidden from active feeds." style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="280" width="220" height="95" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" edge="1" parent="1" source="start" target="login" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;"/>
+        <mxCell id="e2" edge="1" parent="1" source="login" target="auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e3" edge="1" parent="1" source="auth" target="cred" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e4" value="Yes" edge="1" parent="1" source="cred" target="openmodule" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e5" value="No" edge="1" parent="1" source="cred" target="loginerr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e6" edge="1" parent="1" source="loginerr" target="endouter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e7" edge="1" parent="1" source="openmodule" target="selectscope" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e8" edge="1" parent="1" source="selectscope" target="compose" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e9" edge="1" parent="1" source="compose" target="attachment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e10" edge="1" parent="1" source="attachment" target="validate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e11" edge="1" parent="1" source="validate" target="valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e12" value="No" edge="1" parent="1" source="valid" target="valerr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e13" edge="1" parent="1" source="valerr" target="compose" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e14" value="Yes" edge="1" parent="1" source="valid" target="preview" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e15" edge="1" parent="1" source="preview" target="publishdecision" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e16" value="No - Schedule" edge="1" parent="1" source="publishdecision" target="schedule" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e17" edge="1" parent="1" source="schedule" target="save" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e18" value="Yes" edge="1" parent="1" source="publishdecision" target="publish" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e19" edge="1" parent="1" source="save" target="publish" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e20" edge="1" parent="1" source="publish" target="notify" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e21" edge="1" parent="1" source="notify" target="receive" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e22" edge="1" parent="1" source="receive" target="audit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e23" edge="1" parent="1" source="audit" target="endouter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
