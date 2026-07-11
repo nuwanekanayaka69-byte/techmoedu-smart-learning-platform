@@ -1,0 +1,105 @@
+@startuml
+title TechmoEDU Smart Learning Platform
+10 - Teacher Assignment Activity Diagram
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #EAF3FF
+  BorderColor #1F4E79
+  FontColor #1F1F1F
+  DiamondBackgroundColor #FFF2CC
+  DiamondBorderColor #BF9000
+  StartColor #1F4E79
+  EndColor #C00000
+}
+skinparam partition {
+  BorderColor #1F4E79
+  FontColor #1F1F1F
+}
+
+|Institute Admin|
+start
+:Login to TechmoEDU;
+
+|TechmoEDU System|
+:Authenticate Admin;
+
+if (Credentials Valid?) then (Yes)
+
+  |Institute Admin|
+  :Open Teacher Assignment Module;
+  :Select Institute and Course;
+
+  |TechmoEDU System|
+  :Load Course Requirements and Schedule;
+
+  |Institute Admin|
+  :Select Teacher Candidate;
+
+  |TechmoEDU System|
+  :Verify Teacher Status;
+  :Verify Subject Competence;
+  :Verify Institute Membership;
+
+  if (Teacher Eligible?) then (Yes)
+    :Check Existing Workload;
+    :Check Timetable Conflicts;
+
+    if (Conflict Detected?) then (Yes)
+      :Display Conflict Details;
+
+      |Super Admin|
+      if (Override Requested?) then (Yes)
+        :Review Override Request;
+        if (Approve Override?) then (Yes)
+          |Institute Admin|
+          :Submit Assignment;
+        else (No)
+          |Institute Admin|
+          :Select Another Teacher;
+          detach
+        endif
+      else (No)
+        |Institute Admin|
+        :Select Another Teacher;
+        detach
+      endif
+
+    else (No)
+      |Institute Admin|
+      :Submit Assignment;
+    endif
+
+    |TechmoEDU System|
+    :Create Teacher-Course Assignment Record;
+    :Notify Teacher of New Assignment;
+
+    |Teacher|
+    :Review Assignment Details;
+
+    if (Accept Assignment?) then (Yes)
+      |TechmoEDU System|
+      :Activate Assignment;
+      :Update Timetable;
+      :Update Teacher Workload;
+      :Record Audit Log;
+    else (No)
+      |TechmoEDU System|
+      :Mark Assignment Declined;
+      :Notify Institute Admin;
+    endif
+
+  else (No)
+    :Display Eligibility Error;
+    |Institute Admin|
+    :Select Another Teacher;
+    detach
+  endif
+
+else (No)
+  :Display Login Error;
+endif
+
+stop
+@enduml
