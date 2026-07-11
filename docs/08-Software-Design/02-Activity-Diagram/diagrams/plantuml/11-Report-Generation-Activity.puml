@@ -1,0 +1,63 @@
+@startuml
+title TechmoEDU Smart Learning Platform - Report Generation Activity
+
+|Institute Admin / Teacher|
+start
+:Open Reports Module;
+:Select Report Type;
+:Apply Filters;
+:Click Generate Report;
+
+|TechmoEDU System|
+:Verify User Permission;
+
+if (Authorized?) then (Yes)
+  :Validate Report Filters;
+  if (Filters Valid?) then (Yes)
+    :Fetch Data from Firestore;
+    if (Data Available?) then (Yes)
+      :Generate Report Dataset;
+      if (Generation Successful?) then (Yes)
+        :Render Report Preview;
+        |Institute Admin / Teacher|
+        :Preview Report;
+        :Choose Export Format;
+
+        |TechmoEDU System|
+        if (Export Format?) then (PDF)
+          :Generate PDF;
+        else (Excel)
+          :Generate Excel;
+        endif
+
+        |Institute Admin / Teacher|
+        :Download / Print;
+
+        |TechmoEDU System|
+        :Record Report Audit Log;
+        :Display Success Message;
+        stop
+      else (No)
+        :Show Report Generation Error;
+        |Institute Admin / Teacher|
+        :Retry Generation;
+        stop
+      endif
+    else (No)
+      :Show No Data Message;
+      |Institute Admin / Teacher|
+      :Change Filters;
+      stop
+    endif
+  else (No)
+    :Show Invalid Filter Error;
+    |Institute Admin / Teacher|
+    :Correct Filters;
+    stop
+  endif
+else (No)
+  :Show Permission Denied Error;
+  stop
+endif
+
+@enduml
