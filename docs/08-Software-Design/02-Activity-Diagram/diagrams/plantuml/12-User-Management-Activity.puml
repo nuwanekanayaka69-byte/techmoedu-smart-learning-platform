@@ -1,0 +1,62 @@
+@startuml
+title TechmoEDU Smart Learning Platform - User Management Activity
+
+|Super Administrator|
+start
+:Login to Super Admin Dashboard;
+:Open User Management Module;
+:Search User or Select Create New User;
+
+|TechmoEDU System|
+:Verify Super Administrator Permission;
+
+if (Authorized?) then (Yes)
+  if (Create New User?) then (Yes)
+    |Super Administrator|
+    :Enter User Details;
+    :Assign Role;
+    :Assign Institute;
+    :Set Account Status;
+
+    |TechmoEDU System|
+    :Validate User Data;
+    if (Data Valid?) then (Yes)
+      :Check Duplicate Email;
+      if (Duplicate Email?) then (Yes)
+        :Show Duplicate Email Error;
+      else (No)
+        :Create Firebase Authentication Account;
+        :Create Firestore User Profile;
+      endif
+    else (No)
+      :Show Validation Errors;
+    endif
+  else (No)
+    |Super Administrator|
+    :Select Existing User;
+    :Edit Role / Institute / Status;
+    :Choose Optional Password Reset;
+
+    |TechmoEDU System|
+    :Validate Changes;
+    if (Changes Valid?) then (Yes)
+      :Update Firebase Authentication;
+      :Update Firestore User Profile;
+      if (Password Reset Required?) then (Yes)
+        :Send Password Reset Email;
+      else (No)
+      endif
+    else (No)
+      :Show Invalid Change Error;
+    endif
+  endif
+
+  :Record Audit Log;
+  :Display Success Message;
+  stop
+else (No)
+  :Show Permission Denied Error;
+  stop
+endif
+
+@enduml
