@@ -1,0 +1,154 @@
+<mxfile host="app.diagrams.net" modified="2026-07-10T00:00:00.000Z" agent="OpenAI" version="24.7.17">
+  <diagram id="teacherAssignment" name="10-Teacher-Assignment-Activity">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="TechmoEDU Smart Learning Platform&#xa;10 - Teacher Assignment Activity Diagram" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#1F1F1F;" vertex="1" parent="1">
+          <mxGeometry x="170" y="20" width="1260" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lane1" value="Institute Admin" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#D9EAF7;strokeColor=#1F4E79;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="70" y="100" width="350" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane2" value="TechmoEDU System" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#EAF3FF;strokeColor=#1F4E79;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="420" y="100" width="470" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane3" value="Teacher" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#E2F0D9;strokeColor=#548235;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="890" y="100" width="340" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane4" value="Super Admin" style="swimlane;html=1;horizontal=0;startSize=36;fillColor=#E4DFEC;strokeColor=#7030A0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="100" width="300" height="1000" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="start" value="" style="ellipse;html=1;aspect=fixed;fillColor=#1F4E79;strokeColor=#1F4E79;" vertex="1" parent="1">
+          <mxGeometry x="220" y="135" width="28" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="login" value="Institute Admin Login" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="135" y="185" width="200" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="auth" value="Authenticate Admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="545" y="185" width="220" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="cred" value="Credentials Valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="255" width="150" height="92" as="geometry"/>
+        </mxCell>
+        <mxCell id="loginerr" value="Display Login Error" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4CCCC;strokeColor=#C00000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="965" y="275" width="180" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="openmodule" value="Open Teacher Assignment Module" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="375" width="230" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="selectinst" value="Select Institute and Course" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="125" y="465" width="220" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="loadcourse" value="Load Course Requirements and Schedule" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="515" y="455" width="280" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="selectteacher" value="Select Teacher Candidate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="125" y="555" width="220" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="verify" value="Verify Teacher Status, Subject Skills and Institute Membership" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="500" y="545" width="310" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="eligible" value="Teacher Eligible?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="645" width="150" height="92" as="geometry"/>
+        </mxCell>
+        <mxCell id="eligerr" value="Display Eligibility Error" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4CCCC;strokeColor=#C00000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="955" y="665" width="200" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="workload" value="Check Existing Workload and Timetable Conflicts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="500" y="765" width="310" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="conflict" value="Conflict Detected?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="855" width="150" height="92" as="geometry"/>
+        </mxCell>
+        <mxCell id="conflicterr" value="Display Conflict Details" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4CCCC;strokeColor=#C00000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="950" y="875" width="210" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="override" value="Override Requested?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="850" width="160" height="92" as="geometry"/>
+        </mxCell>
+        <mxCell id="superreview" value="Review Override Request" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E4DFEC;strokeColor=#7030A0;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="735" width="220" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="approveoverride" value="Approve Override?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="625" width="150" height="92" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="submit" value="Submit Assignment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAF7;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="140" y="970" width="190" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="create" value="Create Teacher-Course Assignment Record" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="505" y="965" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="notify" value="Notify Teacher of New Assignment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="515" y="1045" width="280" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="teacherreview" value="Review Assignment Details" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#548235;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="945" y="970" width="230" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="accept" value="Accept Assignment?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="985" y="1040" width="150" height="92" as="geometry"/>
+        </mxCell>
+        <mxCell id="activate" value="Activate Assignment and Update Timetable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="505" y="1125" width="300" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="reject" value="Mark Assignment Declined and Notify Admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4CCCC;strokeColor=#C00000;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="1035" width="230" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="audit" value="Record Audit Log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#1F4E79;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="910" y="1130" width="220" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="endouter" value="" style="ellipse;html=1;aspect=fixed;fillColor=#FFFFFF;strokeColor=#C00000;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="1140" width="34" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="endinner" value="" style="ellipse;html=1;aspect=fixed;fillColor=#C00000;strokeColor=#C00000;" vertex="1" parent="1">
+          <mxGeometry x="1368" y="1148" width="18" height="18" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="note1" value="BR-01: A teacher may teach in up to two institutes, subject to workload and timetable rules." style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1245" y="160" width="240" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="note2" value="BR-02: Only active teachers with matching subject competence can be assigned." style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF9000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1245" y="280" width="240" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" edge="1" parent="1" source="start" target="login" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e2" edge="1" parent="1" source="login" target="auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e3" edge="1" parent="1" source="auth" target="cred" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e4" value="Yes" edge="1" parent="1" source="cred" target="openmodule" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e5" value="No" edge="1" parent="1" source="cred" target="loginerr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e6" edge="1" parent="1" source="loginerr" target="endouter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e7" edge="1" parent="1" source="openmodule" target="selectinst" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e8" edge="1" parent="1" source="selectinst" target="loadcourse" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e9" edge="1" parent="1" source="loadcourse" target="selectteacher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e10" edge="1" parent="1" source="selectteacher" target="verify" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e11" edge="1" parent="1" source="verify" target="eligible" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e12" value="No" edge="1" parent="1" source="eligible" target="eligerr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e13" edge="1" parent="1" source="eligerr" target="selectteacher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e14" value="Yes" edge="1" parent="1" source="eligible" target="workload" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e15" edge="1" parent="1" source="workload" target="conflict" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e16" value="No" edge="1" parent="1" source="conflict" target="submit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e17" value="Yes" edge="1" parent="1" source="conflict" target="conflicterr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e18" edge="1" parent="1" source="conflicterr" target="override" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e19" value="Yes" edge="1" parent="1" source="override" target="superreview" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e20" value="No" edge="1" parent="1" source="override" target="selectteacher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e21" edge="1" parent="1" source="superreview" target="approveoverride" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e22" value="Yes" edge="1" parent="1" source="approveoverride" target="submit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e23" value="No" edge="1" parent="1" source="approveoverride" target="selectteacher" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e24" edge="1" parent="1" source="submit" target="create" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e25" edge="1" parent="1" source="create" target="notify" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e26" edge="1" parent="1" source="notify" target="teacherreview" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e27" edge="1" parent="1" source="teacherreview" target="accept" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e28" value="Yes" edge="1" parent="1" source="accept" target="activate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e29" value="No" edge="1" parent="1" source="accept" target="reject" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e30" edge="1" parent="1" source="reject" target="endouter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#C00000;"/>
+        <mxCell id="e31" edge="1" parent="1" source="activate" target="audit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+        <mxCell id="e32" edge="1" parent="1" source="audit" target="endouter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
