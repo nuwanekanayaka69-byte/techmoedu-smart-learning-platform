@@ -19,6 +19,28 @@
 
 ---
 
+# Table of Contents
+
+1. Purpose
+2. Design Principles
+3. Class Categories
+4. Complete Class Inventory
+5. Identity Hierarchy
+6. Institute Domain
+7. Academic Domain
+8. Finance Domain
+9. Learning Domain
+10. Communication Domain
+11. Reporting Domain
+12. Audit Domain
+13. Firestore Mapping
+14. Dependency Summary
+15. Statistics
+16. Deliverables
+17. Version History
+
+---
+
 # Purpose
 
 This document defines all major domain classes used by the TechmoEDU Smart Learning Platform.
@@ -333,3 +355,28 @@ This document is used as the reference for:
 | Version | Date | Description |
 |----------|------|-------------|
 | 1.0 | 2026 | Initial Enterprise Class List |
+---
+
+# Document Approval
+
+| Role | Name | Status |
+|------|------|--------|
+| System Analyst | Nuwan S. Ekanayaka | Approved |
+| Software Designer | Nuwan S. Ekanayaka | Approved |
+| Database Designer | Nuwan S. Ekanayaka | Approved |
+
+---
+---
+
+# Next Document
+
+➡ **02-Class-Descriptions.md**
+
+This document defines every class with:
+
+- Attributes
+- Methods
+- Responsibilities
+- Relationships
+- Visibility
+- Firestore Mapping
