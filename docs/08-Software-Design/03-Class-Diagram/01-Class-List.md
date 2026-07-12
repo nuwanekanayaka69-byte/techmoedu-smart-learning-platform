@@ -1,9 +1,5 @@
 # 01 - Class List
 
-> Chapter 08 – Software Design
-
-# 01 - Class List
-
 > **Chapter 08 – Software Design**
 >
 > **Section:** UML Class Diagram
