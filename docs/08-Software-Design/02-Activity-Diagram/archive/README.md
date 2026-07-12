@@ -18,3 +18,11 @@ Archived files are kept only for reference.
 Current diagrams are stored in the diagrams folder.
 
 Old versions should never replace the latest approved diagrams.
+# Archive
+
+This folder stores previous revisions, draft diagrams, and deprecated versions of Activity Diagrams.
+
+Examples:
+- Draft versions
+- Reviewer feedback versions
+- Deprecated diagrams
