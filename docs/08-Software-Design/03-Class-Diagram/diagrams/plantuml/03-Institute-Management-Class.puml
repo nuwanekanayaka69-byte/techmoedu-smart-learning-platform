@@ -1,0 +1,237 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n03 - Institute Management Class Diagram
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "Institute Core" {
+  class Institute {
+    - instituteId: String
+    - instituteCode: String
+    - name: String
+    - address: String
+    - phone: String
+    - email: String
+    - logoUrl: String
+    - status: InstituteStatus
+    - createdAt: Timestamp
+    - updatedAt: Timestamp
+    + register(): void
+    + updateDetails(): void
+    + activate(): void
+    + suspend(): void
+  }
+
+  class InstituteSetting {
+    - settingId: String
+    - instituteId: String
+    - academicYear: String
+    - timezone: String
+    - language: String
+    - maxStudentCourses: Integer
+    - parentLinkLimit: Integer
+    + updateSettings(): void
+    + validate(): Boolean
+  }
+}
+
+package "Membership & Administration" {
+  class User {
+    - userId: String
+    - fullName: String
+    - email: String
+    - status: AccountStatus
+  }
+
+  class InstituteAdministrator {
+    - primaryInstituteId: String
+    + manageInstituteUsers(): void
+    + manageCourses(): void
+    + assignTeacher(): void
+    + generateInstituteReports(): void
+  }
+
+  class InstituteMembership {
+    - membershipId: String
+    - instituteId: String
+    - userId: String
+    - membershipType: MembershipType
+    - status: MembershipStatus
+    - joinedAt: Timestamp
+    - leftAt: Timestamp
+    + activate(): void
+    + suspend(): void
+    + terminate(): void
+  }
+
+  class InstituteRoleAssignment {
+    - assignmentId: String
+    - membershipId: String
+    - roleId: String
+    - assignedBy: String
+    - assignedAt: Timestamp
+    - active: Boolean
+    + assign(): void
+    + revoke(): void
+  }
+}
+
+package "Teacher Allocation" {
+  class Teacher {
+    - teacherId: String
+    - employeeNumber: String
+    - specialization: String
+    - qualification: String
+    + viewAssignments(): List<TeacherAssignment>
+    + acceptAssignment(): void
+  }
+
+  class TeacherAssignment {
+    - teacherAssignmentId: String
+    - teacherId: String
+    - instituteId: String
+    - courseId: String
+    - assignedBy: String
+    - assignedAt: Timestamp
+    - status: AssignmentStatus
+    + assign(): void
+    + reassign(): void
+    + deactivate(): void
+  }
+}
+
+package "Academic Ownership" {
+  class Course {
+    - courseId: String
+    - instituteId: String
+    - courseCode: String
+    - title: String
+    - gradeLevel: String
+    - status: CourseStatus
+    + create(): void
+    + update(): void
+    + archive(): void
+  }
+
+  class ClassSession {
+    - classSessionId: String
+    - courseId: String
+    - startAt: Timestamp
+    - endAt: Timestamp
+    - status: SessionStatus
+    + schedule(): void
+    + cancel(): void
+  }
+}
+
+package "Student & Parent Scope" {
+  class Student {
+    - studentId: String
+    - studentNumber: String
+    - gradeLevel: String
+    + viewInstituteCourses(): List<Course>
+  }
+
+  class Parent {
+    - parentId: String
+    - relationshipType: String
+    + viewLinkedChildren(): List<Student>
+  }
+
+  class ParentStudentLink {
+    - linkId: String
+    - instituteId: String
+    - parentId: String
+    - studentId: String
+    - relationshipType: String
+    - status: LinkStatus
+    - linkedAt: Timestamp
+    + link(): void
+    + approve(): void
+    + unlink(): void
+  }
+}
+
+package "Audit & Service Layer" {
+  class InstituteService {
+    + createInstitute(data): Institute
+    + updateInstitute(id, data): void
+    + assignAdministrator(instituteId, userId): void
+    + addMember(instituteId, userId): InstituteMembership
+  }
+
+  class TeacherAssignmentService {
+    + assignTeacher(teacherId, instituteId, courseId): TeacherAssignment
+    + validateCrossInstituteAssignment(teacherId): Boolean
+    + deactivateAssignment(id): void
+  }
+
+  class ParentLinkService {
+    + linkParentToStudent(parentId, studentId, instituteId): ParentStudentLink
+    + validateLinkLimit(parentId): Boolean
+    + unlink(id): void
+  }
+
+  class AuditLog {
+    - auditLogId: String
+    - userId: String
+    - instituteId: String
+    - action: String
+    - entityType: String
+    - entityId: String
+    - createdAt: Timestamp
+    + write(): void
+  }
+}
+
+User <|-- InstituteAdministrator
+User <|-- Teacher
+User <|-- Student
+User <|-- Parent
+
+Institute "1" *-- "1" InstituteSetting
+Institute "1" -- "1" InstituteAdministrator : administered by
+Institute "1" o-- "0..*" InstituteMembership
+User "1" -- "0..*" InstituteMembership
+InstituteMembership "1" *-- "0..*" InstituteRoleAssignment
+
+Teacher "1" -- "0..*" TeacherAssignment
+Institute "1" -- "0..*" TeacherAssignment
+Course "1" -- "0..*" TeacherAssignment
+
+Institute "1" o-- "0..*" Course
+Course "1" *-- "0..*" ClassSession
+
+Institute "1" -- "0..*" ParentStudentLink
+Parent "1" -- "2..3" ParentStudentLink
+Student "1" -- "0..*" ParentStudentLink
+
+InstituteService ..> Institute
+InstituteService ..> InstituteMembership
+InstituteService ..> InstituteAdministrator
+TeacherAssignmentService ..> TeacherAssignment
+TeacherAssignmentService ..> Teacher
+TeacherAssignmentService ..> Course
+ParentLinkService ..> ParentStudentLink
+ParentLinkService ..> Parent
+ParentLinkService ..> Student
+
+Institute "1" -- "0..*" AuditLog
+User "1" -- "0..*" AuditLog
+
+note right of TeacherAssignment
+Business rule:
+A teacher may work in multiple institutes.
+Each assignment is institute and course scoped.
+end note
+
+note right of ParentStudentLink
+Business rule:
+Parent access is restricted to linked students.
+Recommended link range: 2..3 children.
+end note
+
+note bottom of InstituteAdministrator
+Each institute has one designated administrator.
+end note
+@enduml
