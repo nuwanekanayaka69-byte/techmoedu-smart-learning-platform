@@ -1,0 +1,238 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n02 - User and Role Class Diagram
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "Identity Core" {
+  abstract class User {
+    - userId: String
+    - firstName: String
+    - lastName: String
+    - email: String
+    - phone: String
+    - profileImageUrl: String
+    - status: AccountStatus
+    - emailVerified: Boolean
+    - lastLoginAt: Timestamp
+    - createdAt: Timestamp
+    - updatedAt: Timestamp
+    + login(email: String, password: String): AuthSession
+    + logout(): void
+    + updateProfile(data: UserProfileData): void
+    + changePassword(currentPassword: String, newPassword: String): void
+    + deactivateAccount(): void
+    + hasPermission(code: String): Boolean
+  }
+
+  class SuperAdministrator {
+    - platformScope: String
+    + createInstitute(): void
+    + assignInstituteAdministrator(): void
+    + manageSystemSettings(): void
+    + viewAuditLogs(): List<AuditLog>
+  }
+
+  class InstituteAdministrator {
+    - primaryInstituteId: String
+    + manageInstituteUsers(): void
+    + assignTeacher(): void
+    + manageCourses(): void
+    + publishAnnouncement(): void
+  }
+
+  class Teacher {
+    - employeeNumber: String
+    - specialization: String
+    + viewAssignedCourses(): List<Course>
+    + recordAttendance(): void
+    + recordMarks(): void
+    + uploadLearningResource(): void
+  }
+
+  class Student {
+    - studentNumber: String
+    - dateOfBirth: Date
+    - gradeLevel: String
+    + viewEnrolledCourses(): List<Course>
+    + viewAttendance(): List<Attendance>
+    + viewResults(): List<Mark>
+    + submitAssignment(): void
+  }
+
+  class Parent {
+    - relationshipType: String
+    + viewLinkedChildren(): List<Student>
+    + viewChildProgress(studentId: String): Report
+    + viewChildFeeStatus(studentId: String): List<Payment>
+  }
+
+  User <|-- SuperAdministrator
+  User <|-- InstituteAdministrator
+  User <|-- Teacher
+  User <|-- Student
+  User <|-- Parent
+}
+
+package "Authorization (RBAC)" {
+  class Role {
+    - roleId: String
+    - roleName: String
+    - description: String
+    - systemRole: Boolean
+    - status: RoleStatus
+    + addPermission(permission: Permission): void
+    + removePermission(permissionId: String): void
+    + activate(): void
+    + deactivate(): void
+  }
+
+  class Permission {
+    - permissionId: String
+    - code: String
+    - name: String
+    - module: String
+    - description: String
+    + validate(): Boolean
+  }
+
+  class UserRole {
+    - userRoleId: String
+    - userId: String
+    - roleId: String
+    - instituteId: String
+    - assignedBy: String
+    - assignedAt: Timestamp
+    - active: Boolean
+    + assign(): void
+    + revoke(): void
+  }
+
+  class RolePermission {
+    - rolePermissionId: String
+    - roleId: String
+    - permissionId: String
+    - grantedAt: Timestamp
+    + grant(): void
+    + revoke(): void
+  }
+}
+
+package "Authentication & Security" {
+  class AuthSession {
+    - sessionId: String
+    - userId: String
+    - issuedAt: Timestamp
+    - expiresAt: Timestamp
+    - revoked: Boolean
+    - ipAddress: String
+    - userAgent: String
+    + isValid(): Boolean
+    + refresh(): void
+    + revoke(): void
+  }
+
+  class PasswordResetRequest {
+    - requestId: String
+    - userId: String
+    - tokenHash: String
+    - requestedAt: Timestamp
+    - expiresAt: Timestamp
+    - used: Boolean
+    + validateToken(): Boolean
+    + markUsed(): void
+  }
+
+  class LoginAttempt {
+    - attemptId: String
+    - userId: String
+    - email: String
+    - successful: Boolean
+    - attemptedAt: Timestamp
+    - ipAddress: String
+    + record(): void
+  }
+
+  interface AuthenticationService {
+    + authenticate(email: String, password: String): AuthSession
+    + logout(sessionId: String): void
+    + sendPasswordReset(email: String): void
+    + verifyEmail(userId: String): void
+  }
+
+  interface AuthorizationService {
+    + resolveRoles(userId: String, instituteId: String): List<Role>
+    + hasPermission(userId: String, code: String, instituteId: String): Boolean
+    + enforcePermission(userId: String, code: String): void
+  }
+}
+
+package "Institute Scope & Audit" {
+  class Institute {
+    - instituteId: String
+    - name: String
+    - status: InstituteStatus
+  }
+
+  class InstituteMembership {
+    - membershipId: String
+    - userId: String
+    - instituteId: String
+    - membershipType: String
+    - status: MembershipStatus
+    - joinedAt: Timestamp
+    + activate(): void
+    + suspend(): void
+  }
+
+  class AuditLog {
+    - auditLogId: String
+    - userId: String
+    - instituteId: String
+    - action: String
+    - entityType: String
+    - entityId: String
+    - createdAt: Timestamp
+    + write(): void
+  }
+}
+
+User "1" -- "0..*" UserRole
+Role "1" -- "0..*" UserRole
+Role "1" -- "0..*" RolePermission
+Permission "1" -- "0..*" RolePermission
+
+User "1" *-- "0..*" AuthSession
+User "1" -- "0..*" PasswordResetRequest
+User "0..1" -- "0..*" LoginAttempt
+
+User "1" -- "0..*" InstituteMembership
+Institute "1" -- "0..*" InstituteMembership
+Institute "1" -- "0..*" UserRole : scope
+
+User "1" -- "0..*" AuditLog
+Institute "0..1" -- "0..*" AuditLog
+
+AuthenticationService ..> User
+AuthenticationService ..> AuthSession
+AuthenticationService ..> PasswordResetRequest
+AuthenticationService ..> LoginAttempt
+AuthorizationService ..> UserRole
+AuthorizationService ..> RolePermission
+AuthorizationService ..> Permission
+
+note right of Student
+Business rule:
+Maximum 5 active course enrollments
+end note
+
+note right of Parent
+Business rule:
+Can access linked students only
+end note
+
+note bottom of UserRole
+Role assignment may be global
+or scoped to one institute.
+end note
+@enduml
