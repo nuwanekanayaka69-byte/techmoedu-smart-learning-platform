@@ -1,0 +1,121 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n05 - Marks Recording Sequence Diagram
+autonumber
+hide footbox
+actor Teacher
+boundary MarksPage
+control MarksController
+control MarksService
+control AuthenticationService
+control AuthorizationService
+control TeacherRepository
+control CourseRepository
+control ExaminationRepository
+control StudentRepository
+control MarksRepository
+control GradeService
+database CloudFirestore
+control NotificationService
+control AuditService
+boundary TeacherDashboard
+
+Teacher -> MarksPage : Open marks module
+MarksPage -> MarksController : loadMarksContext()
+MarksController -> AuthenticationService : validateSession()
+AuthenticationService --> MarksController : AuthenticatedTeacher
+MarksController -> AuthorizationService : validateTeacherRoleAndInstitute()
+alt Access denied
+ AuthorizationService --> MarksController : AccessDenied
+ MarksController --> MarksPage : Display access error
+else Access granted
+ AuthorizationService --> MarksController : TeacherContext
+ MarksController -> MarksService : loadAssignedCourses()
+ MarksService -> TeacherRepository : findAssignments()
+ TeacherRepository -> CloudFirestore : query teacherAssignments
+ CloudFirestore --> TeacherRepository : AssignmentList
+ TeacherRepository --> MarksService : AssignedCourses
+ MarksService --> MarksController : AssignedCourses
+ MarksController --> MarksPage : Display course selectors
+ Teacher -> MarksPage : Select course and examination
+ MarksPage -> MarksController : loadExaminationStudents()
+ MarksController -> MarksService : loadExaminationStudents()
+ par Validate course
+  MarksService -> CourseRepository : findCourse()
+  CourseRepository -> CloudFirestore : get course
+  CloudFirestore --> CourseRepository : Course
+  CourseRepository --> MarksService : Course
+ and Validate examination
+  MarksService -> ExaminationRepository : findExamination()
+  ExaminationRepository -> CloudFirestore : get examination
+  CloudFirestore --> ExaminationRepository : Examination
+  ExaminationRepository --> MarksService : Examination
+ end
+ alt Assignment or examination invalid
+  MarksService -> AuditService : logMarksFailure()
+  MarksService --> MarksController : Rejected
+  MarksController --> MarksPage : Display error
+ else Context valid
+  MarksService -> MarksRepository : findExistingMarks()
+  MarksRepository -> CloudFirestore : query marks
+  CloudFirestore --> MarksRepository : ExistingMarks
+  MarksRepository --> MarksService : ExistingMarks
+  MarksService -> StudentRepository : findEligibleStudents()
+  StudentRepository -> CloudFirestore : query students
+  CloudFirestore --> StudentRepository : StudentList
+  StudentRepository --> MarksService : StudentList
+  MarksService --> MarksController : MarksEntryForm
+  MarksController --> MarksPage : Display marks grid
+  loop For each student
+   Teacher -> MarksPage : Enter score / absent / remarks
+   MarksPage -> MarksPage : validate score range
+  end
+  Teacher -> MarksPage : Submit marks
+  MarksPage -> MarksController : saveMarks()
+  MarksController -> MarksService : saveMarks()
+  alt Validation failed
+   MarksService -> AuditService : logMarksFailure(VALIDATION_FAILED)
+   MarksService --> MarksController : ValidationErrors
+   MarksController --> MarksPage : Show row errors
+  else Validation passed
+   loop For each valid entry
+    MarksService -> GradeService : calculateGrade()
+    GradeService --> MarksService : GradeResult
+   end
+   MarksService -> MarksRepository : saveBatch()
+   MarksRepository -> CloudFirestore : run atomic transaction
+   activate CloudFirestore
+   loop For each mark
+    CloudFirestore -> CloudFirestore : create/update mark
+   end
+   CloudFirestore -> CloudFirestore : update result summaries
+   CloudFirestore -> CloudFirestore : update examination statistics
+   alt Transaction failed
+    CloudFirestore --> MarksRepository : TransactionError
+    deactivate CloudFirestore
+    MarksRepository --> MarksService : SaveFailed
+    MarksService -> AuditService : logMarksFailure(TRANSACTION_FAILED)
+    MarksService --> MarksController : SaveFailed
+    MarksController --> MarksPage : Display retry message
+   else Transaction successful
+    CloudFirestore --> MarksRepository : MarksSaved
+    deactivate CloudFirestore
+    MarksRepository --> MarksService : MarksBatch
+    par Audit
+     MarksService -> AuditService : logMarksSuccess()
+     AuditService -> CloudFirestore : create audit log
+     CloudFirestore --> AuditService : Saved
+    and Notify
+     opt Notifications enabled
+      MarksService -> NotificationService : queueResultNotifications()
+      NotificationService --> MarksService : Queued
+     end
+    end
+    MarksService --> MarksController : MarksSaved(summary)
+    MarksController --> MarksPage : Display success
+    MarksPage -> TeacherDashboard : refreshAssessmentWidgets()
+    TeacherDashboard --> Teacher : Show updated summary
+   end
+  end
+ end
+end
+@enduml
