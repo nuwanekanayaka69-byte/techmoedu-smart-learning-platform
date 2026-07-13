@@ -1,0 +1,224 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n05 - Attendance and Examination Class Diagram
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "Attendance Management" {
+  class Attendance {
+    - attendanceId: String
+    - classSessionId: String
+    - studentId: String
+    - markedBy: String
+    - status: AttendanceStatus
+    - remarks: String
+    - markedAt: Timestamp
+    - updatedAt: Timestamp
+    + mark(): void
+    + update(): void
+    + validate(): Boolean
+  }
+
+  class AttendanceCorrectionRequest {
+    - requestId: String
+    - attendanceId: String
+    - requestedBy: String
+    - requestedStatus: AttendanceStatus
+    - reason: String
+    - status: RequestStatus
+    - requestedAt: Timestamp
+    - reviewedAt: Timestamp
+    + submit(): void
+    + approve(): void
+    + reject(): void
+  }
+
+  class AttendanceSummary {
+    - summaryId: String
+    - studentId: String
+    - courseId: String
+    - totalSessions: Integer
+    - presentCount: Integer
+    - absentCount: Integer
+    - lateCount: Integer
+    - attendanceRate: Decimal
+    + calculate(): void
+  }
+}
+
+package "Examination Management" {
+  class Examination {
+    - examinationId: String
+    - courseId: String
+    - title: String
+    - examinationType: ExaminationType
+    - maximumMark: Decimal
+    - passMark: Decimal
+    - examDate: Date
+    - startTime: Time
+    - endTime: Time
+    - status: ExaminationStatus
+    + create(): void
+    + schedule(): void
+    + publish(): void
+    + close(): void
+  }
+
+  class Mark {
+    - markId: String
+    - examinationId: String
+    - studentId: String
+    - score: Decimal
+    - gradeId: String
+    - remarks: String
+    - recordedBy: String
+    - recordedAt: Timestamp
+    + record(): void
+    + update(): void
+    + validateRange(): Boolean
+    + calculatePercentage(): Decimal
+  }
+
+  class Grade {
+    - gradeId: String
+    - gradeName: String
+    - minimumPercentage: Decimal
+    - maximumPercentage: Decimal
+    - description: String
+    + matches(percentage: Decimal): Boolean
+  }
+
+  class ResultPublication {
+    - publicationId: String
+    - examinationId: String
+    - publishedBy: String
+    - publishedAt: Timestamp
+    - status: PublicationStatus
+    + publish(): void
+    + withdraw(): void
+  }
+
+  class ResultSummary {
+    - resultSummaryId: String
+    - studentId: String
+    - examinationId: String
+    - percentage: Decimal
+    - grade: String
+    - rank: Integer
+    - passed: Boolean
+    + calculate(): void
+  }
+}
+
+package "Related Academic Entities" {
+  class Student {
+    - studentId: String
+    - studentNumber: String
+    - fullName: String
+    + viewAttendance(): List<Attendance>
+    + viewResults(): List<ResultSummary>
+  }
+
+  class Teacher {
+    - teacherId: String
+    - employeeNumber: String
+    - fullName: String
+    + markAttendance(): void
+    + recordMarks(): void
+  }
+
+  class Course {
+    - courseId: String
+    - title: String
+    - instituteId: String
+  }
+
+  class ClassSession {
+    - classSessionId: String
+    - courseId: String
+    - teacherId: String
+    - sessionDate: Date
+    - status: SessionStatus
+  }
+}
+
+package "Services & Audit" {
+  class AttendanceService {
+    + loadStudentList(classSessionId: String): List<Student>
+    + markAttendance(classSessionId: String, entries): void
+    + validateTeacherAccess(teacherId: String, classSessionId: String): Boolean
+    + generateSummary(studentId: String, courseId: String): AttendanceSummary
+  }
+
+  class ExaminationService {
+    + createExamination(data): Examination
+    + recordMarks(examinationId: String, entries): void
+    + calculateGrades(examinationId: String): void
+    + publishResults(examinationId: String): ResultPublication
+  }
+
+  class GradeService {
+    + resolveGrade(percentage: Decimal): Grade
+    + validateGradeRanges(): Boolean
+  }
+
+  class AcademicAuditLog {
+    - auditLogId: String
+    - actorId: String
+    - entityType: String
+    - entityId: String
+    - action: String
+    - createdAt: Timestamp
+    + write(): void
+  }
+}
+
+Course "1" *-- "0..*" ClassSession
+ClassSession "1" *-- "0..*" Attendance
+Student "1" -- "0..*" Attendance
+Teacher "1" -- "0..*" Attendance : marks
+
+Attendance "1" -- "0..*" AttendanceCorrectionRequest
+Student "1" -- "0..*" AttendanceCorrectionRequest
+Student "1" -- "0..*" AttendanceSummary
+Course "1" -- "0..*" AttendanceSummary
+
+Course "1" *-- "0..*" Examination
+Examination "1" *-- "0..*" Mark
+Student "1" -- "0..*" Mark
+Teacher "1" -- "0..*" Mark : records
+Grade "1" -- "0..*" Mark
+Examination "1" -- "0..1" ResultPublication
+Student "1" -- "0..*" ResultSummary
+Examination "1" -- "0..*" ResultSummary
+
+AttendanceService ..> Attendance
+AttendanceService ..> AttendanceSummary
+AttendanceService ..> Student
+AttendanceService ..> ClassSession
+ExaminationService ..> Examination
+ExaminationService ..> Mark
+ExaminationService ..> ResultPublication
+GradeService ..> Grade
+GradeService ..> Mark
+
+Attendance "1" -- "0..*" AcademicAuditLog
+Examination "1" -- "0..*" AcademicAuditLog
+Mark "1" -- "0..*" AcademicAuditLog
+Teacher "1" -- "0..*" AcademicAuditLog
+
+note right of Attendance
+Business rule:
+Only assigned teachers may mark
+attendance for a class session.
+end note
+
+note right of Mark
+Business rule:
+0 <= score <= examination.maximumMark
+end note
+
+note bottom of ResultPublication
+Results are visible only after publication.
+end note
+@enduml
