@@ -1,0 +1,285 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n01 - Overall Domain Class Diagram
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "Identity & Access" {
+  abstract class User {
+    - userId: String
+    - firstName: String
+    - lastName: String
+    - email: String
+    - phone: String
+    - status: AccountStatus
+    - createdAt: Timestamp
+    + login()
+    + logout()
+    + updateProfile()
+  }
+
+  class SuperAdministrator {
+    + manageInstitutes()
+    + manageSystemUsers()
+  }
+
+  class InstituteAdministrator {
+    + manageInstituteUsers()
+    + manageCourses()
+  }
+
+  class Teacher {
+    + recordAttendance()
+    + recordMarks()
+    + uploadResource()
+  }
+
+  class Student {
+    + enrollCourse()
+    + viewResults()
+    + submitAssignment()
+  }
+
+  class Parent {
+    + viewChildProgress()
+    + viewFeeStatus()
+  }
+
+  class Role {
+    - roleId: String
+    - roleName: String
+  }
+
+  class Permission {
+    - permissionId: String
+    - code: String
+  }
+
+  User <|-- SuperAdministrator
+  User <|-- InstituteAdministrator
+  User <|-- Teacher
+  User <|-- Student
+  User <|-- Parent
+  Role "1" -- "0..*" User
+  Role "0..*" -- "0..*" Permission
+}
+
+package "Institute Management" {
+  class Institute {
+    - instituteId: String
+    - name: String
+    - status: InstituteStatus
+    + updateDetails()
+  }
+
+  class InstituteMembership {
+    - membershipId: String
+    - instituteId: String
+    - userId: String
+    - status: MembershipStatus
+  }
+
+  class TeacherAssignment {
+    - assignmentId: String
+    - teacherId: String
+    - instituteId: String
+    - courseId: String
+    + assign()
+    + deactivate()
+  }
+
+  class ParentStudentLink {
+    - linkId: String
+    - parentId: String
+    - studentId: String
+    - status: LinkStatus
+  }
+}
+
+package "Academic Management" {
+  class Course {
+    - courseId: String
+    - instituteId: String
+    - title: String
+    - status: CourseStatus
+    + createCourse()
+    + archiveCourse()
+  }
+
+  class Enrollment {
+    - enrollmentId: String
+    - studentId: String
+    - courseId: String
+    - status: EnrollmentStatus
+    + enroll()
+    + cancel()
+  }
+
+  class ClassSession {
+    - sessionId: String
+    - courseId: String
+    - startAt: Timestamp
+    - status: SessionStatus
+    + schedule()
+    + complete()
+  }
+
+  class Attendance {
+    - attendanceId: String
+    - sessionId: String
+    - studentId: String
+    - status: AttendanceStatus
+    + mark()
+    + update()
+  }
+
+  class Examination {
+    - examinationId: String
+    - courseId: String
+    - title: String
+    - maximumMark: Decimal
+    + publish()
+  }
+
+  class Mark {
+    - markId: String
+    - examinationId: String
+    - studentId: String
+    - score: Decimal
+    - grade: String
+    + calculateGrade()
+  }
+}
+
+package "Finance" {
+  class FeeStructure {
+    - feeStructureId: String
+    - courseId: String
+    - amount: Decimal
+    - billingPeriod: String
+  }
+
+  class Payment {
+    - paymentId: String
+    - studentId: String
+    - feeStructureId: String
+    - amount: Decimal
+    - status: PaymentStatus
+    + recordPayment()
+    + verify()
+  }
+
+  class Receipt {
+    - receiptId: String
+    - paymentId: String
+    - receiptNumber: String
+    + generate()
+  }
+}
+
+package "Learning Content" {
+  class LearningResource {
+    - resourceId: String
+    - courseId: String
+    - uploadedBy: String
+    - fileUrl: String
+    + publish()
+  }
+
+  class Assignment {
+    - assignmentId: String
+    - courseId: String
+    - dueAt: Timestamp
+    + publish()
+    + close()
+  }
+
+  class Submission {
+    - submissionId: String
+    - assignmentId: String
+    - studentId: String
+    - submittedAt: Timestamp
+    + submit()
+    + resubmit()
+  }
+}
+
+package "Communication" {
+  class Announcement {
+    - announcementId: String
+    - courseId: String
+    - publishedBy: String
+    - title: String
+    + publish()
+    + archive()
+  }
+
+  class Notification {
+    - notificationId: String
+    - userId: String
+    - type: String
+    - read: Boolean
+    + send()
+    + markAsRead()
+  }
+}
+
+package "Reporting & Audit" {
+  class Report {
+    - reportId: String
+    - reportType: String
+    - generatedBy: String
+    + generatePDF()
+    + exportExcel()
+  }
+
+  class AuditLog {
+    - auditLogId: String
+    - userId: String
+    - action: String
+    - createdAt: Timestamp
+    + writeLog()
+  }
+}
+
+Institute "1" -- "1" InstituteAdministrator : administered by
+Institute "1" o-- "0..*" InstituteMembership
+User "1" -- "0..*" InstituteMembership
+Institute "1" o-- "0..*" Course
+Teacher "1" -- "0..*" TeacherAssignment
+Institute "1" -- "0..*" TeacherAssignment
+Course "1" -- "0..*" TeacherAssignment
+Parent "1" -- "2..3" ParentStudentLink
+Student "1" -- "0..*" ParentStudentLink
+
+Student "1" -- "0..5" Enrollment
+Course "1" -- "0..*" Enrollment
+Course "1" *-- "0..*" ClassSession
+ClassSession "1" *-- "0..*" Attendance
+Student "1" -- "0..*" Attendance
+Course "1" *-- "0..*" Examination
+Examination "1" *-- "0..*" Mark
+Student "1" -- "0..*" Mark
+
+Course "1" -- "0..*" FeeStructure
+FeeStructure "1" -- "0..*" Payment
+Student "1" -- "0..*" Payment
+Payment "1" *-- "1" Receipt
+
+Course "1" o-- "0..*" LearningResource
+Teacher "1" -- "0..*" LearningResource
+Course "1" *-- "0..*" Assignment
+Assignment "1" *-- "0..*" Submission
+Student "1" -- "0..*" Submission
+
+Course "1" -- "0..*" Announcement
+User "1" -- "0..*" Announcement : publishes
+Announcement "1" -- "0..*" Notification
+User "1" -- "0..*" Notification
+
+User "1" -- "0..*" AuditLog
+Report ..> Student
+Report ..> Attendance
+Report ..> Mark
+Report ..> Payment
+@enduml
