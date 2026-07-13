@@ -1,0 +1,113 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n01 - Student Login Sequence Diagram
+autonumber
+hide footbox
+
+actor Student
+boundary LoginPage
+control AuthenticationController
+control AuthenticationService
+entity FirebaseAuthentication
+control UserRepository
+database CloudFirestore
+control AuthorizationService
+control SessionService
+control AuditService
+boundary StudentDashboard
+
+Student -> LoginPage : Open login page
+LoginPage --> Student : Display login form
+Student -> LoginPage : Enter credentials
+Student -> LoginPage : Click Login
+activate LoginPage
+LoginPage -> LoginPage : validateRequiredFields()
+
+alt Input invalid
+  LoginPage --> Student : Display validation errors
+else Input valid
+  LoginPage -> AuthenticationController : login(email, password)
+  activate AuthenticationController
+  AuthenticationController -> AuthenticationService : authenticate(email, password)
+  activate AuthenticationService
+  AuthenticationService -> FirebaseAuthentication : signInWithEmailAndPassword()
+  activate FirebaseAuthentication
+
+  alt Invalid credentials
+    FirebaseAuthentication --> AuthenticationService : Authentication error
+    deactivate FirebaseAuthentication
+    AuthenticationService -> AuditService : logLoginFailure(email, reason)
+    AuditService --> AuthenticationService : Logged
+    AuthenticationService --> AuthenticationController : InvalidCredentials
+    AuthenticationController --> LoginPage : Login failed
+    LoginPage --> Student : Show invalid credentials
+  else Credentials verified
+    FirebaseAuthentication --> AuthenticationService : AuthUser(uid, verified, token)
+    deactivate FirebaseAuthentication
+
+    alt Email not verified
+      AuthenticationService -> AuditService : logLoginFailure(uid, EMAIL_NOT_VERIFIED)
+      AuthenticationService --> AuthenticationController : EmailNotVerified
+      AuthenticationController --> LoginPage : Verification required
+      LoginPage --> Student : Show verify-email instruction
+    else Email verified
+      AuthenticationService -> UserRepository : findById(uid)
+      UserRepository -> CloudFirestore : get users/{uid}
+
+      alt Profile missing
+        CloudFirestore --> UserRepository : null
+        UserRepository --> AuthenticationService : UserNotFound
+        AuthenticationService -> FirebaseAuthentication : signOut()
+        AuthenticationService -> AuditService : logLoginFailure(uid, PROFILE_NOT_FOUND)
+        AuthenticationService --> AuthenticationController : UserProfileMissing
+        AuthenticationController --> LoginPage : Account configuration error
+        LoginPage --> Student : Contact administrator
+      else Profile found
+        CloudFirestore --> UserRepository : UserProfile
+        UserRepository --> AuthenticationService : UserProfile
+
+        alt Account inactive
+          AuthenticationService -> FirebaseAuthentication : signOut()
+          AuthenticationService -> AuditService : logLoginFailure(uid, ACCOUNT_INACTIVE)
+          AuthenticationService --> AuthenticationController : AccountInactive
+          AuthenticationController --> LoginPage : Access denied
+          LoginPage --> Student : Show account status
+        else Account active
+          AuthenticationService -> AuthorizationService : authorizeStudent(profile)
+          alt Authorization denied
+            AuthorizationService --> AuthenticationService : Denied
+            AuthenticationService -> FirebaseAuthentication : signOut()
+            AuthenticationService -> AuditService : logLoginFailure(uid, AUTHORIZATION_DENIED)
+            AuthenticationService --> AuthenticationController : PermissionDenied
+            AuthenticationController --> LoginPage : Access denied
+            LoginPage --> Student : Show permission error
+          else Authorization granted
+            AuthorizationService --> AuthenticationService : StudentContext
+            AuthenticationService -> SessionService : createSession(uid, token, context)
+            SessionService -> CloudFirestore : create sessions/{sessionId}
+            CloudFirestore --> SessionService : Session stored
+            SessionService --> AuthenticationService : Session
+
+            par Update last login
+              AuthenticationService -> UserRepository : updateLastLogin(uid)
+              UserRepository -> CloudFirestore : update users/{uid}
+              CloudFirestore --> UserRepository : Updated
+            and Write audit log
+              AuthenticationService -> AuditService : logLoginSuccess(uid, sessionId)
+              AuditService -> CloudFirestore : create auditLogs/{logId}
+              CloudFirestore --> AuditService : Saved
+            end
+
+            AuthenticationService --> AuthenticationController : LoginSuccess(session, context)
+            deactivate AuthenticationService
+            AuthenticationController --> LoginPage : Redirect /student/dashboard
+            deactivate AuthenticationController
+            LoginPage -> StudentDashboard : navigate(session)
+            StudentDashboard --> Student : Display dashboard
+          end
+        end
+      end
+    end
+  end
+end
+deactivate LoginPage
+@enduml
