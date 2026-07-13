@@ -1,0 +1,146 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n06 - Fee Payment Sequence Diagram
+autonumber
+hide footbox
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor Payer as "Student / Parent"
+boundary PaymentPage
+control PaymentController
+control PaymentService
+control AuthenticationService
+control AuthorizationService
+control InvoiceRepository
+control PaymentRepository
+control PaymentGateway
+database CloudFirestore
+control ReceiptService
+control NotificationService
+control AuditService
+boundary PaymentDashboard
+
+Payer -> PaymentPage : Open fee payment page
+PaymentPage -> PaymentController : loadOutstandingFees()
+PaymentController -> AuthenticationService : validateSession()
+AuthenticationService --> PaymentController : AuthenticatedUser
+PaymentController -> AuthorizationService : validatePaymentAccess(userId, studentId)
+
+alt Access denied
+  AuthorizationService --> PaymentController : AccessDenied
+  PaymentController --> PaymentPage : Display access error
+  PaymentPage --> Payer : Permission denied
+else Access granted
+  AuthorizationService --> PaymentController : PaymentContext
+
+  PaymentController -> PaymentService : loadOutstandingInvoices(studentId)
+  PaymentService -> InvoiceRepository : findOutstandingInvoices(studentId)
+  InvoiceRepository -> CloudFirestore : query unpaid/part-paid invoices
+  CloudFirestore --> InvoiceRepository : InvoiceList
+  InvoiceRepository --> PaymentService : InvoiceList
+  PaymentService --> PaymentController : InvoiceList
+  PaymentController --> PaymentPage : Display invoices
+
+  Payer -> PaymentPage : Select invoice and payment method
+  Payer -> PaymentPage : Confirm payment
+  PaymentPage -> PaymentController : initiatePayment(invoiceId, amount, method)
+  PaymentController -> PaymentService : initiatePayment(context, invoiceId, amount, method)
+
+  PaymentService -> InvoiceRepository : findById(invoiceId)
+  InvoiceRepository -> CloudFirestore : get invoices/{invoiceId}
+  CloudFirestore --> InvoiceRepository : Invoice
+  InvoiceRepository --> PaymentService : Invoice
+
+  alt Invoice missing / cancelled / already paid
+    PaymentService -> AuditService : logPaymentFailure(userId, invoiceId, "INVOICE_INVALID")
+    PaymentService --> PaymentController : InvoiceInvalid
+    PaymentController --> PaymentPage : Display invoice error
+  else Invoice valid
+    PaymentService -> PaymentService : validateAmount(invoice, amount)
+    PaymentService -> PaymentService : validateCurrencyAndMethod()
+
+    alt Invalid amount or unsupported method
+      PaymentService -> AuditService : logPaymentFailure(userId, invoiceId, "VALIDATION_FAILED")
+      PaymentService --> PaymentController : ValidationError
+      PaymentController --> PaymentPage : Display validation error
+    else Validation passed
+      PaymentService -> PaymentRepository : createPendingPayment(invoice, payer, method)
+      PaymentRepository -> CloudFirestore : create payments/{paymentId} status=PENDING
+      CloudFirestore --> PaymentRepository : PendingPaymentSaved
+      PaymentRepository --> PaymentService : PendingPayment
+
+      PaymentService -> PaymentGateway : createPaymentIntent(paymentId, amount, currency)
+      activate PaymentGateway
+
+      alt Gateway rejected / unavailable
+        PaymentGateway --> PaymentService : PaymentFailed(reason)
+        deactivate PaymentGateway
+        PaymentService -> PaymentRepository : markFailed(paymentId, reason)
+        PaymentRepository -> CloudFirestore : update payment status=FAILED
+        CloudFirestore --> PaymentRepository : Updated
+        PaymentService -> AuditService : logPaymentFailure(userId, invoiceId, reason)
+        PaymentService --> PaymentController : PaymentFailed
+        PaymentController --> PaymentPage : Display failure and retry option
+      else Payment authorized
+        PaymentGateway --> PaymentService : GatewayAuthorization(transactionId)
+        deactivate PaymentGateway
+
+        PaymentService -> PaymentGateway : verifyPayment(transactionId)
+        activate PaymentGateway
+
+        alt Verification failed
+          PaymentGateway --> PaymentService : VerificationFailed
+          deactivate PaymentGateway
+          PaymentService -> PaymentRepository : markFailed(paymentId, "VERIFICATION_FAILED")
+          PaymentRepository -> CloudFirestore : update payment status=FAILED
+          PaymentService -> AuditService : logPaymentFailure(userId, invoiceId, "VERIFICATION_FAILED")
+          PaymentService --> PaymentController : PaymentVerificationFailed
+          PaymentController --> PaymentPage : Display verification error
+        else Payment verified
+          PaymentGateway --> PaymentService : VerifiedPayment
+          deactivate PaymentGateway
+
+          PaymentService -> CloudFirestore : begin atomic payment transaction
+          activate CloudFirestore
+          CloudFirestore -> CloudFirestore : update payment status=COMPLETED
+          CloudFirestore -> CloudFirestore : update invoice paidAmount and balance
+          CloudFirestore -> CloudFirestore : update student fee account
+
+          alt Transaction failed
+            CloudFirestore --> PaymentService : TransactionError
+            deactivate CloudFirestore
+            PaymentService -> PaymentRepository : markReconciliationRequired(paymentId)
+            PaymentRepository -> CloudFirestore : update payment status=RECONCILIATION_REQUIRED
+            PaymentService -> AuditService : logPaymentFailure(userId, invoiceId, "TRANSACTION_FAILED")
+            PaymentService --> PaymentController : PaymentPendingReconciliation
+            PaymentController --> PaymentPage : Display pending confirmation
+          else Transaction successful
+            CloudFirestore --> PaymentService : PaymentCommitted
+            deactivate CloudFirestore
+
+            PaymentService -> ReceiptService : generateReceipt(paymentId, invoiceId)
+            ReceiptService -> CloudFirestore : create receipts/{receiptId}
+            CloudFirestore --> ReceiptService : ReceiptSaved
+            ReceiptService --> PaymentService : Receipt
+
+            par Write audit log
+              PaymentService -> AuditService : logPaymentSuccess(userId, paymentId, invoiceId)
+              AuditService -> CloudFirestore : create auditLogs/{logId}
+              CloudFirestore --> AuditService : Saved
+              AuditService --> PaymentService : Logged
+            and Send confirmation
+              PaymentService -> NotificationService : sendPaymentConfirmation(payerId, studentId, receiptId)
+              NotificationService --> PaymentService : NotificationQueued
+            end
+
+            PaymentService --> PaymentController : PaymentSuccess(receipt)
+            PaymentController --> PaymentPage : Display success and receipt
+            PaymentPage -> PaymentDashboard : refreshPaymentStatus()
+            PaymentDashboard --> Payer : Show updated balance and receipt
+          end
+        end
+      end
+    end
+  end
+end
+@enduml
