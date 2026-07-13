@@ -1,0 +1,137 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n04 - Attendance Marking Sequence Diagram
+autonumber
+hide footbox
+
+actor Teacher
+boundary AttendancePage
+control AttendanceController
+control AttendanceService
+control AuthenticationService
+control AuthorizationService
+control TeacherRepository
+control CourseRepository
+control StudentRepository
+control AttendanceRepository
+database CloudFirestore
+control NotificationService
+control AuditService
+boundary TeacherDashboard
+
+Teacher -> AttendancePage : Open attendance module
+AttendancePage -> AttendanceController : loadAttendanceContext()
+AttendanceController -> AuthenticationService : validateSession()
+AuthenticationService --> AttendanceController : AuthenticatedTeacher
+AttendanceController -> AuthorizationService : validateTeacherRoleAndInstitute()
+
+alt Access denied
+  AuthorizationService --> AttendanceController : AccessDenied
+  AttendanceController --> AttendancePage : Display access error
+  AttendancePage --> Teacher : Permission denied
+else Access granted
+  AuthorizationService --> AttendanceController : TeacherContext
+  AttendanceController -> AttendanceService : loadAssignedCourses()
+  AttendanceService -> TeacherRepository : findAssignments()
+  TeacherRepository -> CloudFirestore : query teacherAssignments
+  CloudFirestore --> TeacherRepository : AssignmentList
+  TeacherRepository --> AttendanceService : AssignedCourses
+  AttendanceService --> AttendanceController : AssignedCourses
+  AttendanceController --> AttendancePage : Display selectors
+
+  Teacher -> AttendancePage : Select course and session
+  AttendancePage -> AttendanceController : loadSessionStudents()
+  AttendanceController -> AttendanceService : loadSessionStudents()
+
+  par Validate course
+    AttendanceService -> CourseRepository : findCourse()
+    CourseRepository -> CloudFirestore : get course
+    CloudFirestore --> CourseRepository : Course
+    CourseRepository --> AttendanceService : Course
+  and Validate session
+    AttendanceService -> CloudFirestore : get classSession
+    CloudFirestore --> AttendanceService : ClassSession
+  end
+
+  alt Assignment or session invalid
+    AttendanceService -> AuditService : logAttendanceFailure()
+    AttendanceService --> AttendanceController : Rejected
+    AttendanceController --> AttendancePage : Display error
+  else Valid context
+    AttendanceService -> AttendanceRepository : existsForSession()
+    AttendanceRepository -> CloudFirestore : query attendance
+    CloudFirestore --> AttendanceRepository : ExistingStatus
+    AttendanceRepository --> AttendanceService : ExistingStatus
+
+    alt Already finalized
+      AttendanceService -> AuditService : logAttendanceFailure(ALREADY_MARKED)
+      AttendanceService --> AttendanceController : AttendanceAlreadyMarked
+      AttendanceController --> AttendancePage : Show existing records
+    else Attendance window closed
+      AttendanceService -> AuditService : logAttendanceFailure(WINDOW_CLOSED)
+      AttendanceService --> AttendanceController : AttendanceWindowClosed
+      AttendanceController --> AttendancePage : Show window closed
+    else Can mark attendance
+      AttendanceService -> StudentRepository : findActiveEnrollments(courseId)
+      StudentRepository -> CloudFirestore : query students and enrollments
+      CloudFirestore --> StudentRepository : StudentList
+      StudentRepository --> AttendanceService : StudentList
+      AttendanceService --> AttendanceController : AttendanceForm
+      AttendanceController --> AttendancePage : Display students
+
+      loop For each enrolled student
+        Teacher -> AttendancePage : Set Present/Absent/Late/Excused
+        AttendancePage -> AttendancePage : validateStatusEntry()
+      end
+
+      Teacher -> AttendancePage : Submit attendance
+      AttendancePage -> AttendanceController : saveAttendance(entries)
+      AttendanceController -> AttendanceService : saveAttendance(context, entries)
+      AttendanceService -> AttendanceService : validateEnrollmentAndDuplicates()
+
+      alt Validation failed
+        AttendanceService -> AuditService : logAttendanceFailure(VALIDATION_FAILED)
+        AttendanceService --> AttendanceController : ValidationErrors
+        AttendanceController --> AttendancePage : Show row errors
+      else Validation passed
+        AttendanceService -> AttendanceRepository : saveBatch()
+        AttendanceRepository -> CloudFirestore : run atomic transaction
+        activate CloudFirestore
+        loop For each attendance entry
+          CloudFirestore -> CloudFirestore : create attendance record
+        end
+        CloudFirestore -> CloudFirestore : update summaries
+        CloudFirestore -> CloudFirestore : finalize class session
+
+        alt Transaction failed
+          CloudFirestore --> AttendanceRepository : TransactionError
+          deactivate CloudFirestore
+          AttendanceRepository --> AttendanceService : SaveFailed
+          AttendanceService -> AuditService : logAttendanceFailure(TRANSACTION_FAILED)
+          AttendanceService --> AttendanceController : SaveFailed
+          AttendanceController --> AttendancePage : Display retry message
+        else Transaction successful
+          CloudFirestore --> AttendanceRepository : AttendanceSaved
+          deactivate CloudFirestore
+          AttendanceRepository --> AttendanceService : AttendanceBatch
+
+          par Audit
+            AttendanceService -> AuditService : logAttendanceSuccess()
+            AuditService -> CloudFirestore : create audit log
+            CloudFirestore --> AuditService : Saved
+          and Notify parents
+            opt Notifications enabled
+              AttendanceService -> NotificationService : queueAbsentLateNotifications()
+              NotificationService --> AttendanceService : Queued
+            end
+          end
+
+          AttendanceService --> AttendanceController : AttendanceSaved(summary)
+          AttendanceController --> AttendancePage : Display success
+          AttendancePage -> TeacherDashboard : refreshAttendanceWidgets()
+          TeacherDashboard --> Teacher : Show updated statistics
+        end
+      end
+    end
+  end
+end
+@enduml
