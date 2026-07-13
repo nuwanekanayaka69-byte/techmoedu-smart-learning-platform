@@ -1,0 +1,130 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n03 - Course Enrollment Sequence Diagram
+autonumber
+hide footbox
+
+actor Student
+boundary CourseCatalogPage
+control EnrollmentController
+control EnrollmentService
+control AuthorizationService
+control StudentRepository
+control CourseRepository
+control EligibilityService
+control PaymentService
+database CloudFirestore
+control NotificationService
+control AuditService
+boundary StudentDashboard
+
+Student -> CourseCatalogPage : Open course catalog
+CourseCatalogPage -> EnrollmentController : loadAvailableCourses()
+EnrollmentController -> EnrollmentService : getAvailableCourses(studentId)
+EnrollmentService -> AuthorizationService : validateStudentAccess(studentId)
+
+alt Access denied
+  AuthorizationService --> EnrollmentService : AccessDenied
+  EnrollmentService -> AuditService : logEnrollmentFailure()
+  EnrollmentService --> EnrollmentController : PermissionDenied
+  EnrollmentController --> CourseCatalogPage : Display access error
+else Access granted
+  AuthorizationService --> EnrollmentService : StudentContext
+  EnrollmentService -> CourseRepository : findAvailableCourses(instituteId)
+  CourseRepository -> CloudFirestore : query active courses
+  CloudFirestore --> CourseRepository : CourseList
+  CourseRepository --> EnrollmentService : CourseList
+  EnrollmentService --> EnrollmentController : CourseList
+  EnrollmentController --> CourseCatalogPage : Display courses
+end
+
+Student -> CourseCatalogPage : Select course and click Enroll
+CourseCatalogPage -> EnrollmentController : enroll(studentId, courseId)
+EnrollmentController -> EnrollmentService : enrollStudent(studentId, courseId)
+
+par Load student
+  EnrollmentService -> StudentRepository : findById(studentId)
+  StudentRepository -> CloudFirestore : get users/{studentId}
+  CloudFirestore --> StudentRepository : StudentProfile
+  StudentRepository --> EnrollmentService : StudentProfile
+and Load course
+  EnrollmentService -> CourseRepository : findById(courseId)
+  CourseRepository -> CloudFirestore : get courses/{courseId}
+  CloudFirestore --> CourseRepository : Course
+  CourseRepository --> EnrollmentService : Course
+end
+
+EnrollmentService -> EligibilityService : validateEligibility(student, course)
+EligibilityService -> CloudFirestore : count active enrollments
+CloudFirestore --> EligibilityService : activeEnrollmentCount
+EligibilityService -> CloudFirestore : check duplicate enrollment
+CloudFirestore --> EligibilityService : duplicateStatus
+
+alt Student inactive
+  EligibilityService --> EnrollmentService : StudentInactive
+  EnrollmentService -> AuditService : logEnrollmentFailure()
+  EnrollmentService --> EnrollmentController : Rejected
+  EnrollmentController --> CourseCatalogPage : Show account error
+else Course inactive / window closed / capacity full
+  EligibilityService --> EnrollmentService : CourseUnavailable
+  EnrollmentService -> AuditService : logEnrollmentFailure()
+  EnrollmentService --> EnrollmentController : Rejected
+  EnrollmentController --> CourseCatalogPage : Show course error
+else Maximum 5 active courses reached
+  EligibilityService --> EnrollmentService : LimitExceeded
+  EnrollmentService -> AuditService : logEnrollmentFailure()
+  EnrollmentService --> EnrollmentController : LimitReached
+  EnrollmentController --> CourseCatalogPage : Show maximum-course message
+else Duplicate enrollment
+  EligibilityService --> EnrollmentService : DuplicateEnrollment
+  EnrollmentService -> AuditService : logEnrollmentFailure()
+  EnrollmentService --> EnrollmentController : AlreadyEnrolled
+  EnrollmentController --> CourseCatalogPage : Show duplicate message
+else Eligible
+  EligibilityService --> EnrollmentService : Eligible
+
+  opt Paid course
+    EnrollmentService -> PaymentService : validatePaymentEligibility(studentId, courseId)
+    PaymentService -> CloudFirestore : query fee/payment status
+    CloudFirestore --> PaymentService : PaymentStatus
+    alt Payment required
+      PaymentService --> EnrollmentService : PaymentRequired
+      EnrollmentService -> AuditService : logEnrollmentFailure()
+      EnrollmentService --> EnrollmentController : PaymentRequired
+      EnrollmentController --> CourseCatalogPage : Redirect to payment
+    else Payment valid
+      PaymentService --> EnrollmentService : PaymentValidated
+    end
+  end
+
+  EnrollmentService -> CloudFirestore : run atomic enrollment transaction
+  activate CloudFirestore
+  CloudFirestore -> CloudFirestore : create enrollment
+  CloudFirestore -> CloudFirestore : increment course enrollment count
+  CloudFirestore -> CloudFirestore : update student course references
+
+  alt Transaction failed
+    CloudFirestore --> EnrollmentService : TransactionError
+    deactivate CloudFirestore
+    EnrollmentService -> AuditService : logEnrollmentFailure()
+    EnrollmentService --> EnrollmentController : EnrollmentFailed
+    EnrollmentController --> CourseCatalogPage : Display retry message
+  else Transaction successful
+    CloudFirestore --> EnrollmentService : EnrollmentCreated
+    deactivate CloudFirestore
+
+    par Audit
+      EnrollmentService -> AuditService : logEnrollmentSuccess()
+      AuditService -> CloudFirestore : create audit log
+      CloudFirestore --> AuditService : Saved
+    and Notify
+      EnrollmentService -> NotificationService : sendEnrollmentConfirmation()
+      NotificationService --> EnrollmentService : Queued
+    end
+
+    EnrollmentService --> EnrollmentController : EnrollmentSuccess
+    EnrollmentController --> CourseCatalogPage : Refresh enrollment state
+    CourseCatalogPage -> StudentDashboard : navigateToMyCourses()
+    StudentDashboard --> Student : Display enrolled course
+  end
+end
+@enduml
