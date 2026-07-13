@@ -1,0 +1,187 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n02 - Student Registration Sequence Diagram
+autonumber
+hide footbox
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor Student
+boundary RegistrationPage
+control RegistrationController
+control RegistrationService
+control ValidationService
+entity FirebaseAuthentication
+control UserRepository
+database CloudFirestore
+control RoleService
+control InstituteService
+control NotificationService
+control AuditService
+boundary LoginPage
+
+Student -> RegistrationPage : Open registration page
+RegistrationPage --> Student : Display registration form
+
+Student -> RegistrationPage : Enter personal and institute details
+Student -> RegistrationPage : Submit registration
+activate RegistrationPage
+
+RegistrationPage -> ValidationService : validateForm(data)
+activate ValidationService
+
+alt Validation failed
+    ValidationService --> RegistrationPage : ValidationErrors
+    deactivate ValidationService
+    RegistrationPage --> Student : Display field errors
+else Validation successful
+    ValidationService --> RegistrationPage : ValidatedData
+    deactivate ValidationService
+
+    RegistrationPage -> RegistrationController : registerStudent(validatedData)
+    activate RegistrationController
+
+    RegistrationController -> RegistrationService : registerStudent(validatedData)
+    activate RegistrationService
+
+    RegistrationService -> UserRepository : findByEmail(email)
+    activate UserRepository
+    UserRepository -> CloudFirestore : query users by email
+    activate CloudFirestore
+
+    alt Duplicate email found
+        CloudFirestore --> UserRepository : ExistingUser
+        deactivate CloudFirestore
+        UserRepository --> RegistrationService : DuplicateEmail
+        deactivate UserRepository
+        RegistrationService -> AuditService : logRegistrationFailure(email, "DUPLICATE_EMAIL")
+        activate AuditService
+        AuditService --> RegistrationService : Logged
+        deactivate AuditService
+        RegistrationService --> RegistrationController : DuplicateEmailError
+        RegistrationController --> RegistrationPage : Registration failed
+        RegistrationPage --> Student : Display duplicate email message
+
+    else Email available
+        CloudFirestore --> UserRepository : No matching user
+        deactivate CloudFirestore
+        UserRepository --> RegistrationService : EmailAvailable
+        deactivate UserRepository
+
+        RegistrationService -> InstituteService : validateInstitute(instituteCode)
+        activate InstituteService
+
+        alt Institute invalid or inactive
+            InstituteService --> RegistrationService : InstituteInvalid
+            deactivate InstituteService
+            RegistrationService -> AuditService : logRegistrationFailure(email, "INSTITUTE_INVALID")
+            activate AuditService
+            AuditService --> RegistrationService : Logged
+            deactivate AuditService
+            RegistrationService --> RegistrationController : InstituteValidationError
+            RegistrationController --> RegistrationPage : Registration failed
+            RegistrationPage --> Student : Display institute error
+
+        else Institute valid
+            InstituteService --> RegistrationService : InstituteContext
+            deactivate InstituteService
+
+            RegistrationService -> FirebaseAuthentication : createUserWithEmailAndPassword(email, password)
+            activate FirebaseAuthentication
+
+            alt Weak password / Firebase validation error
+                FirebaseAuthentication --> RegistrationService : AuthenticationValidationError
+                deactivate FirebaseAuthentication
+                RegistrationService -> AuditService : logRegistrationFailure(email, "AUTH_VALIDATION")
+                activate AuditService
+                AuditService --> RegistrationService : Logged
+                deactivate AuditService
+                RegistrationService --> RegistrationController : PasswordPolicyError
+                RegistrationController --> RegistrationPage : Registration failed
+                RegistrationPage --> Student : Display password policy message
+
+            else Authentication account created
+                FirebaseAuthentication --> RegistrationService : AuthUser(uid)
+                deactivate FirebaseAuthentication
+
+                RegistrationService -> RoleService : assignDefaultRole(uid, "STUDENT", instituteId)
+                activate RoleService
+
+                alt Role assignment failed
+                    RoleService --> RegistrationService : RoleAssignmentError
+                    deactivate RoleService
+                    RegistrationService -> FirebaseAuthentication : deleteUser(uid)
+                    activate FirebaseAuthentication
+                    FirebaseAuthentication --> RegistrationService : Auth account rolled back
+                    deactivate FirebaseAuthentication
+                    RegistrationService -> AuditService : logRegistrationFailure(uid, "ROLE_ASSIGNMENT_FAILED")
+                    RegistrationService --> RegistrationController : RegistrationRollback
+                    RegistrationController --> RegistrationPage : Registration failed
+                    RegistrationPage --> Student : Display temporary error
+
+                else Role assigned
+                    RoleService --> RegistrationService : StudentRoleAssignment
+                    deactivate RoleService
+
+                    RegistrationService -> UserRepository : createStudentProfile(uid, profile, role, institute)
+                    activate UserRepository
+                    UserRepository -> CloudFirestore : create users/{uid}
+                    activate CloudFirestore
+
+                    alt Firestore write failed
+                        CloudFirestore --> UserRepository : WriteError
+                        deactivate CloudFirestore
+                        UserRepository --> RegistrationService : ProfileCreationError
+                        deactivate UserRepository
+                        RegistrationService -> FirebaseAuthentication : deleteUser(uid)
+                        activate FirebaseAuthentication
+                        FirebaseAuthentication --> RegistrationService : Auth account rolled back
+                        deactivate FirebaseAuthentication
+                        RegistrationService -> AuditService : logRegistrationFailure(uid, "PROFILE_CREATION_FAILED")
+                        RegistrationService --> RegistrationController : RegistrationRollback
+                        RegistrationController --> RegistrationPage : Registration failed
+                        RegistrationPage --> Student : Display retry message
+
+                    else Student profile created
+                        CloudFirestore --> UserRepository : ProfileSaved
+                        deactivate CloudFirestore
+                        UserRepository --> RegistrationService : StudentProfile
+                        deactivate UserRepository
+
+                        RegistrationService -> FirebaseAuthentication : sendEmailVerification(uid)
+                        activate FirebaseAuthentication
+                        FirebaseAuthentication --> RegistrationService : Verification email queued
+                        deactivate FirebaseAuthentication
+
+                        par Write audit log
+                            RegistrationService -> AuditService : logRegistrationSuccess(uid, instituteId)
+                            activate AuditService
+                            AuditService -> CloudFirestore : create auditLogs/{logId}
+                            activate CloudFirestore
+                            CloudFirestore --> AuditService : Saved
+                            deactivate CloudFirestore
+                            AuditService --> RegistrationService : Logged
+                            deactivate AuditService
+                        and Send welcome notification
+                            RegistrationService -> NotificationService : sendWelcomeMessage(uid)
+                            activate NotificationService
+                            NotificationService --> RegistrationService : Notification queued
+                            deactivate NotificationService
+                        end
+
+                        RegistrationService --> RegistrationController : RegistrationSuccess(uid, verificationRequired)
+                        deactivate RegistrationService
+                        RegistrationController --> RegistrationPage : RedirectResponse("/login?registered=true")
+                        deactivate RegistrationController
+                        RegistrationPage -> LoginPage : navigate()
+                        activate LoginPage
+                        LoginPage --> Student : Display registration success and verify-email message
+                        deactivate LoginPage
+                    end
+                end
+            end
+        end
+    end
+end
+
+deactivate RegistrationPage
+@enduml
