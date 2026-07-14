@@ -1,0 +1,149 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n10 - Teacher Assignment Sequence Diagram
+autonumber
+hide footbox
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor InstituteAdministrator as "Institute Administrator"
+boundary TeacherAssignmentPage
+control AssignmentController
+control AssignmentService
+control AuthenticationService
+control AuthorizationService
+control TeacherRepository
+control InstituteRepository
+control CourseRepository
+control AssignmentRepository
+control WorkloadService
+database CloudFirestore
+control NotificationService
+control AuditService
+boundary AdminDashboard
+
+InstituteAdministrator -> TeacherAssignmentPage : Open teacher assignment module
+TeacherAssignmentPage -> AssignmentController : loadAssignmentContext()
+AssignmentController -> AuthenticationService : validateSession()
+AuthenticationService --> AssignmentController : AuthenticatedAdministrator
+AssignmentController -> AuthorizationService : validateInstituteAdminPermission()
+
+alt Access denied
+  AuthorizationService --> AssignmentController : AccessDenied
+  AssignmentController --> TeacherAssignmentPage : Display permission error
+  TeacherAssignmentPage --> InstituteAdministrator : Assignment not allowed
+else Access granted
+  AuthorizationService --> AssignmentController : AdministratorContext
+
+  AssignmentController -> AssignmentService : loadAssignableTeachersAndCourses(context)
+  par Load institute teachers
+    AssignmentService -> TeacherRepository : findAvailableTeachers(instituteId)
+    TeacherRepository -> CloudFirestore : query teachers and memberships
+    CloudFirestore --> TeacherRepository : TeacherList
+    TeacherRepository --> AssignmentService : TeacherList
+  and Load institute courses
+    AssignmentService -> CourseRepository : findActiveCourses(instituteId)
+    CourseRepository -> CloudFirestore : query active courses
+    CloudFirestore --> CourseRepository : CourseList
+    CourseRepository --> AssignmentService : CourseList
+  end
+
+  AssignmentService --> AssignmentController : AssignmentContext
+  AssignmentController --> TeacherAssignmentPage : Display teacher/course selectors
+
+  InstituteAdministrator -> TeacherAssignmentPage : Select teacher, course, role and schedule
+  InstituteAdministrator -> TeacherAssignmentPage : Submit assignment
+  TeacherAssignmentPage -> AssignmentController : assignTeacher(data)
+  AssignmentController -> AssignmentService : assignTeacher(adminContext, data)
+
+  par Validate teacher
+    AssignmentService -> TeacherRepository : findById(teacherId)
+    TeacherRepository -> CloudFirestore : get teacher profile
+    CloudFirestore --> TeacherRepository : TeacherProfile
+    TeacherRepository --> AssignmentService : TeacherProfile
+  and Validate institute
+    AssignmentService -> InstituteRepository : findById(instituteId)
+    InstituteRepository -> CloudFirestore : get institute
+    CloudFirestore --> InstituteRepository : Institute
+    InstituteRepository --> AssignmentService : Institute
+  and Validate course
+    AssignmentService -> CourseRepository : findById(courseId)
+    CourseRepository -> CloudFirestore : get course
+    CloudFirestore --> CourseRepository : Course
+    CourseRepository --> AssignmentService : Course
+  end
+
+  alt Teacher / institute / course invalid
+    AssignmentService -> AuditService : logAssignmentFailure(adminId, teacherId, courseId, "ENTITY_INVALID")
+    AssignmentService --> AssignmentController : AssignmentRejected
+    AssignmentController --> TeacherAssignmentPage : Display entity validation error
+  else Valid entities
+    AssignmentService -> AssignmentRepository : findDuplicate(teacherId, instituteId, courseId)
+    AssignmentRepository -> CloudFirestore : query active teacherAssignments
+    CloudFirestore --> AssignmentRepository : DuplicateStatus
+    AssignmentRepository --> AssignmentService : DuplicateStatus
+
+    alt Duplicate assignment exists
+      AssignmentService -> AuditService : logAssignmentFailure(adminId, teacherId, courseId, "DUPLICATE")
+      AssignmentService --> AssignmentController : AlreadyAssigned
+      AssignmentController --> TeacherAssignmentPage : Display duplicate warning
+    else New assignment
+      AssignmentService -> WorkloadService : validateTeacherWorkload(teacherId, instituteId, courseId, schedule)
+      WorkloadService -> CloudFirestore : query assignments and timetable
+      CloudFirestore --> WorkloadService : WorkloadData
+      WorkloadService --> AssignmentService : WorkloadResult
+
+      alt Workload exceeded / schedule conflict
+        AssignmentService -> AuditService : logAssignmentFailure(adminId, teacherId, courseId, "WORKLOAD_OR_CONFLICT")
+        AssignmentService --> AssignmentController : WorkloadRejected
+        AssignmentController --> TeacherAssignmentPage : Display conflict details
+      else Workload valid
+        AssignmentService -> AuthorizationService : validateCrossInstitutePolicy(teacherId, instituteId)
+
+        alt Cross-institute policy violated
+          AuthorizationService --> AssignmentService : CrossInstituteDenied
+          AssignmentService -> AuditService : logAssignmentFailure(adminId, teacherId, courseId, "CROSS_INSTITUTE_DENIED")
+          AssignmentService --> AssignmentController : PolicyRejected
+          AssignmentController --> TeacherAssignmentPage : Display policy error
+        else Policy valid
+          AuthorizationService --> AssignmentService : PolicyApproved
+
+          AssignmentService -> AssignmentRepository : createAssignment(data)
+          AssignmentRepository -> CloudFirestore : begin atomic assignment transaction
+          activate CloudFirestore
+          CloudFirestore -> CloudFirestore : create teacherAssignments/{assignmentId}
+          CloudFirestore -> CloudFirestore : update teacher institute/course references
+          CloudFirestore -> CloudFirestore : update course teacher references
+
+          alt Transaction failed
+            CloudFirestore --> AssignmentRepository : TransactionError
+            deactivate CloudFirestore
+            AssignmentRepository --> AssignmentService : AssignmentCreationFailed
+            AssignmentService -> AuditService : logAssignmentFailure(adminId, teacherId, courseId, "TRANSACTION_FAILED")
+            AssignmentService --> AssignmentController : AssignmentFailed
+            AssignmentController --> TeacherAssignmentPage : Display retry message
+          else Transaction successful
+            CloudFirestore --> AssignmentRepository : AssignmentCreated
+            deactivate CloudFirestore
+            AssignmentRepository --> AssignmentService : TeacherAssignment
+
+            par Write audit log
+              AssignmentService -> AuditService : logAssignmentSuccess(adminId, assignmentId)
+              AuditService -> CloudFirestore : create auditLogs/{logId}
+              CloudFirestore --> AuditService : Saved
+              AuditService --> AssignmentService : Logged
+            and Notify teacher
+              AssignmentService -> NotificationService : sendTeacherAssignmentNotification(teacherId, assignmentId)
+              NotificationService --> AssignmentService : NotificationQueued
+            end
+
+            AssignmentService --> AssignmentController : AssignmentSuccess(assignment)
+            AssignmentController --> TeacherAssignmentPage : Display success
+            TeacherAssignmentPage -> AdminDashboard : refreshTeacherAssignments()
+            AdminDashboard --> InstituteAdministrator : Show updated assignment
+          end
+        end
+      end
+    end
+  end
+end
+@enduml
