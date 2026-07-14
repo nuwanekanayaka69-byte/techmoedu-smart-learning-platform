@@ -1,0 +1,58 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n01 - User Account State Machine
+hide empty description
+[*] --> AccountCreated : register() / createUserProfile()
+AccountCreated --> VerificationPending : issueVerification() / generateVerificationToken()
+VerificationPending --> EmailVerified : verifyEmail() [tokenValid] / markEmailVerified()
+VerificationPending --> VerificationFailed : verifyEmail() [tokenInvalid] / recordVerificationFailure()
+VerificationPending --> VerificationExpired : timeout() [tokenExpired] / expireVerificationToken()
+VerificationFailed --> VerificationPending : retryVerification() [retryAllowed]
+VerificationExpired --> VerificationPending : requestNewToken() [accountNotArchived]
+EmailVerified --> Active : activateAccount() [securityPolicySatisfied] / enablePlatformAccess()
+Active --> AuthenticationPending : login() / validateCredentials()
+AuthenticationPending --> Authenticated : credentialsAccepted() [passwordValid && accountActive] / createSession()
+AuthenticationPending --> AuthenticationFailed : credentialsRejected() / incrementFailedAttempts()
+AuthenticationFailed --> AuthenticationPending : retryLogin() [attemptsRemaining]
+AuthenticationFailed --> Locked : thresholdReached() [maximumAttemptsExceeded] / lockAccount()
+Authenticated --> Active : logout() / terminateSession()
+Authenticated --> PasswordResetPending : requestPasswordReset() / generateResetToken()
+PasswordResetPending --> Active : resetPassword() [tokenValid && passwordPolicySatisfied] / updatePassword()
+PasswordResetPending --> PasswordResetExpired : timeout() [tokenExpired]
+PasswordResetExpired --> PasswordResetPending : requestNewResetToken() [accountActive]
+Locked --> Active : unlockAccount() [administratorApproved] / resetFailedAttempts()
+Active --> SecurityReview : detectSecurityViolation() / suspendSensitiveOperations()
+Authenticated --> SecurityReview : detectSecurityViolation() / revokeSession()
+SecurityReview --> Suspended : violationConfirmed() / enforceSuspension()
+SecurityReview --> Active : cleared() / restoreNormalAccess()
+Authenticated --> Suspended : suspendAccount() [administratorApproved] / revokeSessions()
+Suspended --> Active : reactivateAccount() [administratorApproved && complianceSatisfied] / restoreAccess()
+Suspended --> Disabled : disableAccount() [policyDecisionFinal]
+Authenticated --> Disabled : disableAccount() [administratorApproved] / revokeSessions()
+Disabled --> Active : enableAccount() [administratorApproved && policySatisfied] / restoreAuthentication()
+Disabled --> Archived : archiveAccount() [retentionRulesSatisfied] / anonymizeSensitiveData()
+Archived --> [*] : lifecycleComplete()
+state AccountCreated { entry / assignDefaultRole()
+entry / initializePreferences() }
+state VerificationPending { entry / sendVerificationEmail()
+do / awaitVerification()
+exit / invalidateVerificationToken() }
+state Active { entry / recordActivationTime()
+do / monitorSessionAndSecurity()
+exit / saveLastActiveTime() }
+state Authenticated { entry / recordLogin()
+do / authorizeRequests()
+exit / closeSession() }
+state Locked { entry / revokeSessions()
+do / denyAuthentication() }
+state PasswordResetPending { entry / sendPasswordResetLink()
+do / awaitPasswordReset() }
+state SecurityReview { entry / openSecurityCase()
+do / investigateSecurityEvent()
+exit / closeSecurityCase() }
+state Suspended { entry / revokeSessions()
+do / denyProtectedAccess() }
+state Disabled { entry / disableAuthentication()
+do / preserveReadOnlyRecords() }
+state Archived { entry / preserveAuditHistory()
+do / allowReadOnlyAdministrativeAccess() }
+@enduml

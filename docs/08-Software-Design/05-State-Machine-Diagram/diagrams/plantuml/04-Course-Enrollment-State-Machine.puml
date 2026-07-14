@@ -1,0 +1,230 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n04 - Course Enrollment State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> EnrollmentRequested : requestEnrollment() / createEnrollmentRecord()
+
+state EnrollmentRequested {
+  entry / assignEnrollmentId()
+  entry / recordRequestTime()
+  do / awaitEligibilityValidation()
+}
+
+EnrollmentRequested --> EligibilityValidation : beginEligibilityCheck() / lockRequestData()
+EnrollmentRequested --> EnrollmentCancelled : cancelRequest() / releaseReservedResources()
+EnrollmentRequested --> EnrollmentExpired : requestExpired() [requestValidityExceeded] / markExpired()
+
+state EligibilityValidation {
+  entry / reserveTemporarySeat()
+  do / validateStudentStatus()
+  do / validatePrerequisites()
+  do / validateCourseAvailability()
+  exit / recordEligibilityDecision()
+}
+
+EligibilityValidation --> EligibilityFailed : eligibilityRejected() [studentIneligible || prerequisitesMissing] / recordEligibilityFailure()
+EligibilityValidation --> CapacityWaitlisted : capacityUnavailable() [courseFull && waitlistEnabled] / addToWaitlist()
+EligibilityValidation --> EnrollmentRejected : capacityUnavailable() [courseFull && !waitlistEnabled] / rejectEnrollment()
+EligibilityValidation --> PaymentPending : eligibilityApproved() [studentEligible && coursePublished && courseActive && capacityAvailable] / generatePaymentReference()
+
+state EligibilityFailed {
+  entry / notifyEligibilityFailure()
+  do / awaitCorrectionOrAppeal()
+}
+EligibilityFailed --> EligibilityValidation : retryEligibilityCheck() [correctionAllowed] / resubmitEligibilityData()
+EligibilityFailed --> AdministratorReview : requestEligibilityReview() [appealAllowed] / openReviewCase()
+EligibilityFailed --> EnrollmentRejected : correctionDeadlinePassed() / closeEnrollmentRequest()
+
+state CapacityWaitlisted {
+  entry / assignWaitlistPosition()
+  do / monitorSeatAvailability()
+}
+CapacityWaitlisted --> EligibilityValidation : seatAvailable() / reserveTemporarySeat()
+CapacityWaitlisted --> EnrollmentCancelled : cancelWaitlist() / removeFromWaitlist()
+CapacityWaitlisted --> EnrollmentExpired : waitlistExpired() / closeEnrollmentRequest()
+
+state PaymentPending {
+  entry / generatePaymentReference()
+  do / awaitPayment()
+  exit / recordPaymentAttempt()
+}
+
+PaymentPending --> PaymentProcessing : initiatePayment() [paymentMethodValid] / createPendingPayment()
+PaymentPending --> PaymentExpired : paymentDeadlinePassed() / expirePaymentReference()
+PaymentPending --> EnrollmentCancelled : cancelBeforePayment() / releaseSeat()
+
+state PaymentProcessing {
+  do / verifyPaymentGateway()
+  do / validateAmountAndCurrency()
+}
+
+PaymentProcessing --> PaymentVerified : paymentConfirmed() [gatewayVerified && amountValid] / markPaymentCompleted()
+PaymentProcessing --> PaymentFailed : paymentRejected() / recordPaymentFailure()
+PaymentProcessing --> ReconciliationRequired : gatewayConfirmedButPersistenceUncertain() / openReconciliationCase()
+
+state PaymentFailed {
+  entry / notifyPaymentFailure()
+}
+PaymentFailed --> PaymentPending : retryPayment() [retryAllowed] / issueNewPaymentReference()
+PaymentFailed --> EnrollmentCancelled : paymentRetryLimitReached() / releaseSeat()
+
+state PaymentExpired {
+  entry / notifyPaymentExpiry()
+  entry / releaseSeat()
+}
+PaymentExpired --> PaymentPending : restartPayment() [courseStillAvailable] / reserveSeatAgain()
+PaymentExpired --> EnrollmentExpired : enrollmentWindowClosed() / closeEnrollmentRequest()
+
+state ReconciliationRequired {
+  entry / blockEnrollmentActivation()
+  do / investigatePaymentStatus()
+}
+ReconciliationRequired --> PaymentVerified : reconciliationConfirmedPaid() / markPaymentCompleted()
+ReconciliationRequired --> PaymentFailed : reconciliationConfirmedUnpaid() / markPaymentFailed()
+
+state PaymentVerified {
+  entry / recordPaymentVerification()
+  do / awaitApproval()
+}
+
+PaymentVerified --> ApprovalPending : submitForApproval() / notifyInstituteAdministrator()
+
+state ApprovalPending {
+  entry / recordApprovalRequest()
+  do / awaitAdministrativeDecision()
+}
+
+ApprovalPending --> Enrolled : approveEnrollment() [administratorApproved] / commitEnrollment()
+ApprovalPending --> AdministratorReview : requestAdditionalReview() / openReviewCase()
+ApprovalPending --> EnrollmentRejected : rejectEnrollment() [administratorRejected] / releaseSeat()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewEligibilityPaymentAndCapacity()
+  exit / recordReviewOutcome()
+}
+AdministratorReview --> ApprovalPending : reviewCleared() [issuesResolved] / resumeApproval()
+AdministratorReview --> EnrollmentRejected : reviewRejected() / releaseSeat()
+
+state Enrolled {
+  entry / createEnrollmentMembership()
+  entry / assignCourseAccess()
+  entry / notifyStudent()
+  do / awaitCourseStart()
+}
+
+Enrolled --> Active : activateEnrollment() [courseStarted && enrollmentValid] / enableLearningAccess()
+Enrolled --> EnrollmentCancelled : cancelBeforeStart() [cancellationAllowed] / revokeCourseAccess()
+Enrolled --> EnrollmentSuspended : suspendEnrollment() [policyViolation] / revokeProtectedAccess()
+
+state Active {
+  entry / enableLearningResources()
+  entry / enableAttendanceAndAssessmentAccess()
+  do / monitorParticipationAndCompliance()
+  exit / updateLastActiveEnrollmentTime()
+}
+
+Active --> EnrollmentSuspended : suspendEnrollment() [policyViolation || paymentIssue] / revokeProtectedAccess()
+Active --> EnrollmentDropped : dropEnrollment() [dropAllowed] / closeStudentAccess()
+Active --> CompletionValidation : courseDeliveryComplete() / calculateCompletionEligibility()
+Active --> EnrollmentCancelled : cancelEnrollment() [administratorApproved] / closeStudentAccess()
+
+state EnrollmentSuspended {
+  entry / revokeProtectedAccess()
+  entry / notifyStudentAndParent()
+  do / awaitRemediation()
+}
+EnrollmentSuspended --> Active : reactivateEnrollment() [issuesResolved && administratorApproved] / restoreLearningAccess()
+EnrollmentSuspended --> EnrollmentDropped : suspensionDeadlinePassed() / closeEnrollment()
+EnrollmentSuspended --> EnrollmentCancelled : cancelSuspendedEnrollment() [administratorApproved]
+
+state CompletionValidation {
+  do / validateAttendanceRequirement()
+  do / validateAssessmentCompletion()
+  do / validateFinancialClearance()
+}
+
+CompletionValidation --> Completed : completionApproved() [attendanceRequirementMet && assessmentCompleted && financialClearance] / finalizeEnrollment()
+CompletionValidation --> Active : completionRequirementsPending() [courseStillOpen] / continueParticipation()
+CompletionValidation --> EnrollmentIncomplete : completionRejected() [courseClosed && requirementsNotMet] / markIncomplete()
+
+state Completed {
+  entry / recordCompletionDate()
+  entry / issueCompletionStatus()
+  do / preserveReadOnlyAcademicAccess()
+}
+
+Completed --> Archived : archiveEnrollment() [reportsFinalized && retentionRulesSatisfied] / preserveAuditHistory()
+
+state EnrollmentIncomplete {
+  entry / notifyIncompleteStatus()
+  do / preserveIncompleteAcademicRecord()
+}
+EnrollmentIncomplete --> Archived : archiveIncompleteEnrollment() [retentionRulesSatisfied]
+
+state EnrollmentDropped {
+  entry / recordDropReason()
+  entry / revokeCourseAccess()
+  do / preserveParticipationHistory()
+}
+EnrollmentDropped --> Archived : archiveDroppedEnrollment() [financialAndAcademicClosureComplete]
+
+state EnrollmentCancelled {
+  entry / recordCancellationReason()
+  entry / releaseSeat()
+  entry / triggerRefundWorkflowIfRequired()
+  do / preserveCancellationHistory()
+}
+EnrollmentCancelled --> Archived : archiveCancelledEnrollment() [closureComplete]
+
+state EnrollmentRejected {
+  entry / notifyRejection()
+  entry / preserveDecisionHistory()
+}
+EnrollmentRejected --> [*] : closeEnrollmentRequest()
+
+state EnrollmentExpired {
+  entry / notifyEnrollmentExpiry()
+  entry / releaseSeat()
+  entry / preserveRequestHistory()
+}
+EnrollmentExpired --> [*] : closeEnrollmentRequest()
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+
+Archived --> [*] : lifecycleComplete()
+
+note right of EligibilityValidation
+Eligibility requires active student status,
+published and active course, prerequisite
+compliance, and available capacity.
+end note
+
+note right of PaymentProcessing
+Enrollment activation is blocked until
+payment is verified or reconciled.
+end note
+
+note right of Active
+Active enrollment enables resources,
+attendance, and assessment access.
+end note
+
+note right of CompletionValidation
+Completion requires attendance,
+assessment, and financial clearance.
+end note
+@enduml

@@ -1,0 +1,191 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n05 - Attendance State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> SessionCreated : createAttendanceSession() / initializeAttendanceSession()
+
+state SessionCreated {
+  entry / generateAttendanceSessionId()
+  entry / loadEnrolledStudents()
+  do / awaitScheduledStart()
+}
+
+SessionCreated --> AttendanceOpen : openAttendance() [sessionStarted && classActive && teacherAssigned] / enableAttendanceEntry()
+SessionCreated --> AttendanceCancelled : cancelSession() [authorizedCancellation] / notifyStakeholders()
+SessionCreated --> AttendanceExpired : sessionStartMissed() [openingWindowExpired] / closeSession()
+
+state AttendanceOpen {
+  entry / recordOpenedAt()
+  entry / initializeStudentAttendance()
+  do / monitorAttendanceWindow()
+  exit / recordWindowClosure()
+}
+
+AttendanceOpen --> AttendanceMarking : beginMarking() [attendanceWindowOpen] / lockStudentRoster()
+AttendanceOpen --> AttendanceExpired : attendanceWindowClosed() [noEntriesRecorded] / markNoSubmission()
+AttendanceOpen --> AttendanceCancelled : cancelAttendance() [administratorApproved] / revokeEntryAccess()
+
+state AttendanceMarking {
+  do / captureAttendanceStatuses()
+  do / validateOneStatusPerStudent()
+  do / calculateLiveSummary()
+}
+
+AttendanceMarking --> AttendanceIncomplete : saveDraft() [missingStudentStatuses] / persistDraftEntries()
+AttendanceMarking --> AttendanceSubmitted : submitAttendance() [attendanceCompleted] / persistAttendanceBatch()
+AttendanceMarking --> DuplicateAttendance : duplicateDetected() / blockDuplicateRecord()
+AttendanceMarking --> LateSubmission : submitAttendance() [attendanceWindowClosed] / flagLateSubmission()
+
+state AttendanceIncomplete {
+  entry / notifyTeacherOfMissingEntries()
+  do / awaitCompletion()
+}
+AttendanceIncomplete --> AttendanceMarking : resumeMarking() [attendanceWindowOpen] / restoreDraftEntries()
+AttendanceIncomplete --> LateSubmission : attendanceWindowClosed() / flagLateSubmission()
+AttendanceIncomplete --> AttendanceExpired : correctionDeadlinePassed() / closeIncompleteSession()
+
+state DuplicateAttendance {
+  entry / recordDuplicateAttempt()
+}
+DuplicateAttendance --> AttendanceMarking : removeDuplicate() [duplicateResolved] / resumeMarking()
+DuplicateAttendance --> AdministratorReview : escalateDuplicate() [manualReviewRequired] / openReviewCase()
+
+state LateSubmission {
+  entry / recordLateSubmissionReason()
+  do / awaitAdministrativeDecision()
+}
+LateSubmission --> AttendanceSubmitted : approveLateSubmission() [administratorApproved] / acceptLateAttendance()
+LateSubmission --> AttendanceRejected : rejectLateSubmission() [administratorRejected] / preserveDraftForAudit()
+
+state AttendanceSubmitted {
+  entry / recordSubmittedAt()
+  entry / createSubmissionAudit()
+  do / awaitVerification()
+}
+
+AttendanceSubmitted --> VerificationInProgress : startVerification() / validateAttendanceEntries()
+
+state VerificationInProgress {
+  do / validateRosterCompleteness()
+  do / validateTeacherOwnership()
+  do / validateAttendanceWindow()
+  do / calculateAttendancePercentages()
+}
+
+VerificationInProgress --> AttendanceVerified : verificationPassed() [entriesValid && ownershipValid] / approveAttendance()
+VerificationInProgress --> CorrectionRequired : verificationFailed() [correctableErrors] / returnForCorrection()
+VerificationInProgress --> AttendanceRejected : verificationFailed() [criticalIntegrityFailure] / rejectAttendance()
+VerificationInProgress --> SyncFailed : synchronizationFailed() / queueSynchronizationRetry()
+
+state CorrectionRequired {
+  entry / publishCorrectionComments()
+  do / awaitTeacherCorrection()
+}
+CorrectionRequired --> AttendanceMarking : reopenForCorrection() [correctionAuthorized] / unlockEditableEntries()
+CorrectionRequired --> AdministratorReview : correctionDeadlinePassed() / escalateForReview()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewAttendanceEvidence()
+  exit / recordReviewDecision()
+}
+AdministratorReview --> AttendanceVerified : reviewApproved() / approveAttendance()
+AdministratorReview --> CorrectionRequired : requestFurtherCorrection() / reopenCorrectionWindow()
+AdministratorReview --> AttendanceRejected : reviewRejected() / preserveRejectedRecord()
+
+state SyncFailed {
+  entry / logSynchronizationFailure()
+  do / retryReportSynchronization()
+}
+SyncFailed --> VerificationInProgress : synchronizationRecovered() / resumeVerification()
+SyncFailed --> SystemRecoveryPending : retryLimitReached() / escalateSystemRecovery()
+
+state SystemRecoveryPending {
+  entry / notifyTechnicalAdministrator()
+  do / awaitSystemRecovery()
+}
+SystemRecoveryPending --> VerificationInProgress : recoveryCompleted() / resumeVerification()
+SystemRecoveryPending --> AttendanceRejected : recoveryFailedPermanently() / preserveFailureRecord()
+
+state AttendanceVerified {
+  entry / recordVerifiedAt()
+  entry / synchronizeAttendanceReports()
+  entry / notifyTeacher()
+  do / awaitFinalLock()
+}
+
+AttendanceVerified --> AttendanceLocked : lockAttendance() [verificationPassed] / enforceImmutability()
+AttendanceVerified --> CorrectionRequired : requestCorrectionBeforeLock() [administratorApproved] / reopenCorrectionWindow()
+
+state AttendanceLocked {
+  entry / revokeEditAccess()
+  entry / preserveImmutableAuditHistory()
+  do / allowReadOnlyAccess()
+}
+
+AttendanceLocked --> CorrectionRequested : requestPostLockCorrection() [correctionReasonProvided] / openCorrectionRequest()
+AttendanceLocked --> Archived : archiveAttendance() [reportingComplete && retentionRulesSatisfied] / moveToArchive()
+
+state CorrectionRequested {
+  entry / notifyInstituteAdministrator()
+  do / awaitCorrectionApproval()
+}
+CorrectionRequested --> CorrectionRequired : approveCorrection() [administratorApproved] / createCorrectionVersion()
+CorrectionRequested --> AttendanceLocked : rejectCorrection() [administratorRejected] / preserveLockedVersion()
+
+state AttendanceRejected {
+  entry / notifyTeacherOfRejection()
+  entry / preserveRejectedAuditHistory()
+}
+AttendanceRejected --> Archived : archiveRejectedAttendance() [reviewClosed] / preserveAuditHistory()
+
+state AttendanceCancelled {
+  entry / recordCancellationReason()
+  entry / notifyTeacherAndStudents()
+  do / preserveCancellationHistory()
+}
+AttendanceCancelled --> Archived : archiveCancelledAttendance() [closureComplete]
+
+state AttendanceExpired {
+  entry / notifyAttendanceExpiry()
+  entry / preserveSessionHistory()
+}
+AttendanceExpired --> Archived : archiveExpiredAttendance() [closureComplete]
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+
+Archived --> [*] : lifecycleComplete()
+
+note right of AttendanceOpen
+Only the assigned teacher may mark
+attendance while the window is open.
+end note
+
+note right of VerificationInProgress
+Each enrolled student must have exactly
+one valid attendance status per session.
+end note
+
+note right of AttendanceLocked
+Locked attendance is immutable.
+Corrections require an approved request.
+end note
+
+note right of Archived
+Archived attendance remains read-only
+and fully auditable.
+end note
+@enduml

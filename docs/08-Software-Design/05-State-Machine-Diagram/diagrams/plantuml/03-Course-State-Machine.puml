@@ -1,0 +1,167 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n03 - Course State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> Draft : createCourse() / initializeCourseRecord()
+
+state Draft {
+  entry / assignCourseId()
+  do / captureCourseDetails()
+  exit / updateDraftTimestamp()
+}
+
+Draft --> UnderReview : submitForReview() [mandatoryFieldsComplete] / lockReviewFields()
+Draft --> Cancelled : cancelCourseCreation() / recordCancellation()
+Draft --> Expired : expireDraft() [draftRetentionExceeded] / markDraftExpired()
+
+state UnderReview {
+  entry / assignReviewer()
+  do / validateCurriculum()
+  do / validateTeacherAndInstituteScope()
+  do / verifyFeeAndSchedule()
+  exit / recordReviewDecision()
+}
+
+UnderReview --> ReviewChangesRequired : requestChanges() [reviewIssuesFound] / publishReviewComments()
+UnderReview --> Approved : approveCourse() [reviewPassed && instituteActive] / approveCourseDefinition()
+UnderReview --> Rejected : rejectCourse() [criticalIssueFound] / recordRejectionReason()
+
+state ReviewChangesRequired {
+  entry / notifyCourseOwner()
+  do / awaitCourseRevision()
+}
+ReviewChangesRequired --> Draft : reviseCourse() [revisionWindowOpen] / unlockEditableFields()
+ReviewChangesRequired --> Rejected : revisionDeadlinePassed() / closeCourseRequest()
+
+state Approved {
+  entry / recordApproval()
+  entry / freezeApprovedCurriculum()
+  do / awaitPublication()
+}
+
+Approved --> Published : publishCourse() [publicationAuthorized] / exposeCourseCatalogEntry()
+Approved --> Suspended : suspendBeforePublication() [policyViolation] / blockPublication()
+
+state Published {
+  entry / setPublishedAt()
+  do / allowCatalogVisibility()
+  exit / recordPublicationExit()
+}
+
+Published --> Active : activateCourse() [teacherAssigned && scheduleReady && capacityConfigured] / openEnrollment()
+Published --> Unpublished : unpublishCourse() [authorizedRequest] / hideFromCatalog()
+Published --> Suspended : suspendCourse() [policyViolation] / blockEnrollment()
+
+state Unpublished {
+  entry / hideCatalogEntry()
+  do / preserveApprovedDefinition()
+}
+Unpublished --> Published : republishCourse() [publicationAuthorized] / restoreCatalogEntry()
+Unpublished --> Archived : archiveUnpublishedCourse() [retentionRulesSatisfied] / preserveAuditHistory()
+
+state Active {
+  entry / openEnrollment()
+  entry / enableLearningResources()
+  do / monitorEnrollmentAndDelivery()
+  exit / closeOpenEnrollmentWindow()
+}
+
+Active --> EnrollmentClosed : closeEnrollment() [enrollmentDeadlineReached || capacityReached] / preventNewEnrollments()
+Active --> Suspended : suspendCourse() [securityOrComplianceIssue] / revokeCourseAccess()
+Active --> Completed : completeCourse() [deliveryComplete] / calculateCompletionStatus()
+Active --> Cancelled : cancelActiveCourse() [approvedCancellation] / notifyEnrolledUsers()
+
+state EnrollmentClosed {
+  entry / disableNewEnrollment()
+  do / allowExistingStudentsToContinue()
+}
+EnrollmentClosed --> Active : reopenEnrollment() [administratorApproved && capacityAvailable] / enableEnrollment()
+EnrollmentClosed --> Completed : completeCourse() [deliveryComplete] / finalizeCourseDelivery()
+EnrollmentClosed --> Suspended : suspendCourse() [policyViolation]
+
+state Suspended {
+  entry / blockEnrollment()
+  entry / restrictResourceAccess()
+  entry / notifyStakeholders()
+  do / awaitReviewOrRemediation()
+  exit / recordSuspensionEnd()
+}
+Suspended --> Active : reactivateCourse() [issuesResolved && administratorApproved] / restoreCourseAccess()
+Suspended --> Cancelled : cancelCourse() [remediationFailed] / closeCourseOperations()
+Suspended --> Archived : archiveSuspendedCourse() [retentionRulesSatisfied] / preserveAuditHistory()
+
+state Completed {
+  entry / closeEnrollment()
+  entry / finalizeAttendanceAndResults()
+  entry / notifyCompletion()
+  do / preserveReadOnlyAcademicAccess()
+}
+
+Completed --> Archived : archiveCourse() [allReportsFinalized && retentionRulesSatisfied] / moveToArchive()
+Completed --> Reopened : reopenCourse() [authorizedExtension] / restoreCourseOperations()
+
+state Reopened {
+  entry / recordReopenReason()
+  do / allowExtendedDelivery()
+}
+Reopened --> Completed : completeExtension() / finalizeExtendedDelivery()
+Reopened --> Suspended : suspendCourse() [policyViolation]
+
+state Cancelled {
+  entry / closeEnrollment()
+  entry / notifyEnrolledUsers()
+  entry / triggerRefundWorkflowIfRequired()
+  do / preserveCancellationHistory()
+}
+Cancelled --> Archived : archiveCancelledCourse() [financialAndAcademicClosureComplete] / preserveAuditHistory()
+
+state Rejected {
+  entry / notifyCourseOwner()
+  entry / preserveReviewHistory()
+}
+Rejected --> [*] : closeCourseRequest()
+
+state Expired {
+  entry / notifyDraftOwner()
+  entry / preserveDraftHistory()
+}
+Expired --> [*] : closeCourseRequest()
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+
+Archived --> [*] : lifecycleComplete()
+
+note right of UnderReview
+Review validates curriculum,
+teacher assignment scope,
+schedule, capacity, and fees.
+end note
+
+note right of Active
+Only Active courses may accept
+students and deliver learning services.
+end note
+
+note right of Suspended
+Suspension must preserve records
+while blocking protected operations.
+end note
+
+note right of Archived
+Archived courses are immutable
+except for authorized retention actions.
+end note
+@enduml

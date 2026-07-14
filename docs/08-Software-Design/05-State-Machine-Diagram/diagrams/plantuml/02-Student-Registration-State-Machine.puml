@@ -1,0 +1,171 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n02 - Student Registration State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> Draft : startRegistration() / createRegistrationRecord()
+
+state Draft {
+  entry / assignTemporaryRegistrationId()
+  do / captureStudentDetails()
+  exit / updateDraftTimestamp()
+}
+
+Draft --> Submitted : submitRegistration() [requiredFieldsCompleted] / lockSubmittedData()
+Draft --> Cancelled : cancelRegistration() / recordCancellation()
+Draft --> Expired : expireDraft() [draftRetentionExceeded] / markExpired()
+
+state Submitted {
+  entry / recordSubmissionTime()
+  entry / initializeValidationChecklist()
+  do / awaitValidation()
+}
+
+Submitted --> ValidationPending : beginValidation() / queueValidationTasks()
+
+state ValidationPending {
+  do / validateSubmittedData()
+  do / checkDuplicateRegistration()
+  do / verifyInstituteCapacity()
+}
+
+ValidationPending --> DuplicateRegistration : duplicateDetected() [studentAlreadyRegistered] / recordDuplicate()
+ValidationPending --> ValidationFailed : validationFailed() [invalidOrIncompleteData] / recordValidationErrors()
+ValidationPending --> DocumentsVerification : validationPassed() [studentNotRegistered && instituteCapacityAvailable] / startDocumentVerification()
+
+state DuplicateRegistration {
+  entry / notifyDuplicateStatus()
+}
+DuplicateRegistration --> Rejected : rejectDuplicate() / closeRegistration()
+DuplicateRegistration --> AdministratorReview : requestManualReview() [reviewAllowed] / openReviewCase()
+
+state ValidationFailed {
+  entry / exposeValidationErrors()
+}
+ValidationFailed --> Draft : correctRegistration() [correctionWindowOpen] / unlockEditableFields()
+ValidationFailed --> Rejected : rejectInvalidRegistration() [correctionWindowClosed]
+
+state DocumentsVerification {
+  do / verifyUploadedDocuments()
+  do / validateDocumentAuthenticity()
+}
+
+DocumentsVerification --> DocumentsMissing : documentsIncomplete() [requiredDocumentsMissing] / requestMissingDocuments()
+DocumentsVerification --> DocumentsRejected : documentsInvalid() [fraudOrMismatchDetected] / recordDocumentFailure()
+DocumentsVerification --> ParentVerification : documentsApproved() [documentsValid] / startParentVerification()
+
+state DocumentsMissing {
+  entry / notifyMissingDocuments()
+  do / awaitDocumentUpload()
+}
+DocumentsMissing --> DocumentsVerification : uploadMissingDocuments() [allRequiredDocumentsUploaded] / resumeVerification()
+DocumentsMissing --> Expired : documentDeadlinePassed() / expireRegistration()
+
+state DocumentsRejected {
+  entry / notifyDocumentRejection()
+}
+DocumentsRejected --> AdministratorReview : appealDocumentDecision() [appealWindowOpen] / openReviewCase()
+DocumentsRejected --> Rejected : confirmRejection() / closeRegistration()
+
+state ParentVerification {
+  do / verifyParentIdentity()
+  do / validateParentStudentRelationship()
+}
+
+ParentVerification --> ParentVerificationFailed : parentVerificationFailed() / recordVerificationFailure()
+ParentVerification --> ApprovalPending : parentVerified() [relationshipConfirmed] / submitForApproval()
+
+state ParentVerificationFailed {
+  entry / notifyParentVerificationFailure()
+}
+ParentVerificationFailed --> ParentVerification : retryParentVerification() [retryAllowed] / issueNewVerificationCode()
+ParentVerificationFailed --> Rejected : retryLimitReached() / closeRegistration()
+
+state ApprovalPending {
+  entry / notifyInstituteAdministrator()
+  do / awaitAdministrativeDecision()
+}
+
+ApprovalPending --> Approved : approveRegistration() [administratorApproved] / generateStudentId()
+ApprovalPending --> Rejected : rejectRegistration() [administratorRejected] / recordRejectionReason()
+ApprovalPending --> AdministratorReview : requestAdditionalReview() / openReviewCase()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewRegistrationEvidence()
+  exit / recordReviewDecision()
+}
+AdministratorReview --> ApprovalPending : reviewCleared() [issuesResolved] / resumeApproval()
+AdministratorReview --> Rejected : reviewRejected() / closeRegistration()
+
+state Approved {
+  entry / createStudentAccount()
+  entry / assignDefaultStudentRole()
+  entry / createInstituteMembership()
+  do / finalizeRegistration()
+}
+
+Approved --> Registered : completeRegistration() [accountCreated && membershipCreated] / activateStudentProfile()
+Approved --> RegistrationFailed : finalizationFailed() / rollbackStudentCreation()
+
+state RegistrationFailed {
+  entry / logFinalizationFailure()
+}
+RegistrationFailed --> Approved : retryFinalization() [retryAllowed] / resumeFinalization()
+RegistrationFailed --> Rejected : rollbackFailed() / requireAdministratorIntervention()
+
+state Registered {
+  entry / sendWelcomeNotification()
+  entry / writeRegistrationAudit()
+  do / allowStudentOnboarding()
+}
+
+Registered --> [*] : lifecycleComplete()
+
+state Rejected {
+  entry / notifyRejection()
+  entry / preserveAuditHistory()
+}
+
+Rejected --> [*] : closeRegistration()
+
+state Cancelled {
+  entry / recordCancellationReason()
+  entry / preserveDraftHistory()
+}
+Cancelled --> [*] : closeRegistration()
+
+state Expired {
+  entry / notifyRegistrationExpiry()
+  entry / preserveAuditHistory()
+}
+Expired --> [*] : closeRegistration()
+
+note right of Draft
+Mandatory fields must be complete
+before submission.
+end note
+
+note right of ValidationPending
+Duplicate registration and institute
+capacity checks are mandatory.
+end note
+
+note right of ApprovalPending
+Only an authorized Institute Administrator
+may approve or reject registration.
+end note
+
+note right of Registered
+Student ID, account, role, and institute
+membership must all exist before activation.
+end note
+@enduml
