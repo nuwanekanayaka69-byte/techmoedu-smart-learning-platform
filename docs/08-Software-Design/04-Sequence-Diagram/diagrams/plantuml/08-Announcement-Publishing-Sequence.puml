@@ -1,0 +1,108 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n08 - Announcement Publishing Sequence Diagram
+autonumber
+hide footbox
+
+actor Publisher as "Institute Administrator / Teacher"
+boundary AnnouncementPage
+control AnnouncementController
+control AnnouncementService
+control AuthenticationService
+control AuthorizationService
+control AudienceService
+control CourseRepository
+control AnnouncementRepository
+database CloudFirestore
+control SchedulerService
+control NotificationService
+control AuditService
+boundary Dashboard
+
+Publisher -> AnnouncementPage : Open announcement page
+AnnouncementPage -> AnnouncementController : loadPublishingContext()
+AnnouncementController -> AuthenticationService : validateSession()
+AuthenticationService --> AnnouncementController : AuthenticatedUser
+AnnouncementController -> AuthorizationService : validatePublishPermission()
+
+alt Access denied
+  AuthorizationService --> AnnouncementController : AccessDenied
+  AnnouncementController --> AnnouncementPage : Display permission error
+else Access granted
+  AuthorizationService --> AnnouncementController : PublisherContext
+  AnnouncementController -> AnnouncementService : loadAvailableScopes()
+  AnnouncementService -> CourseRepository : findAuthorizedCourses()
+  CourseRepository -> CloudFirestore : query institute/course scopes
+  CloudFirestore --> CourseRepository : ScopeList
+  CourseRepository --> AnnouncementService : ScopeList
+  AnnouncementService --> AnnouncementController : ScopeList
+  AnnouncementController --> AnnouncementPage : Display selectors
+
+  Publisher -> AnnouncementPage : Enter title, message, audience, schedule
+  Publisher -> AnnouncementPage : Click Publish / Schedule
+  AnnouncementPage -> AnnouncementController : publishAnnouncement(data)
+  AnnouncementController -> AnnouncementService : publishAnnouncement(context,data)
+  AnnouncementService -> AuthorizationService : validateScopeOwnership()
+
+  alt Invalid content, scope or schedule
+    AuthorizationService --> AnnouncementService : ValidationFailure
+    AnnouncementService -> AuditService : logPublishFailure()
+    AnnouncementService --> AnnouncementController : ValidationErrors
+    AnnouncementController --> AnnouncementPage : Display errors
+  else Validation successful
+    AuthorizationService --> AnnouncementService : ScopeApproved
+    AnnouncementService -> AudienceService : resolveAudience()
+    AudienceService -> CloudFirestore : query active recipients
+    CloudFirestore --> AudienceService : RecipientList
+    AudienceService --> AnnouncementService : AudienceResult
+
+    alt Empty audience
+      AnnouncementService -> AuditService : logPublishFailure(EMPTY_AUDIENCE)
+      AnnouncementService --> AnnouncementController : EmptyAudience
+      AnnouncementController --> AnnouncementPage : Display audience error
+    else Audience resolved
+      AnnouncementService -> AnnouncementRepository : checkDuplicate()
+      AnnouncementRepository -> CloudFirestore : query duplicate announcements
+      CloudFirestore --> AnnouncementRepository : DuplicateStatus
+      AnnouncementRepository --> AnnouncementService : DuplicateStatus
+
+      alt Duplicate announcement
+        AnnouncementService -> AuditService : logPublishFailure(DUPLICATE)
+        AnnouncementService --> AnnouncementController : DuplicateAnnouncement
+        AnnouncementController --> AnnouncementPage : Display duplicate warning
+      else New announcement
+        AnnouncementService -> AnnouncementRepository : createDraft()
+        AnnouncementRepository -> CloudFirestore : create DRAFT announcement
+        CloudFirestore --> AnnouncementRepository : DraftSaved
+        AnnouncementRepository --> AnnouncementService : AnnouncementDraft
+
+        alt Publish now
+          AnnouncementService -> CloudFirestore : publish transaction
+          CloudFirestore --> AnnouncementService : Published
+        else Schedule for later
+          AnnouncementService -> SchedulerService : schedulePublication()
+          SchedulerService -> CloudFirestore : create scheduled job
+          CloudFirestore --> SchedulerService : Scheduled
+          SchedulerService --> AnnouncementService : ScheduleConfirmed
+          AnnouncementService -> CloudFirestore : update status=SCHEDULED
+        end
+
+        par Audit
+          AnnouncementService -> AuditService : logPublishSuccess()
+          AuditService -> CloudFirestore : create audit log
+          CloudFirestore --> AuditService : Saved
+        and Notify
+          opt Immediate publication
+            AnnouncementService -> NotificationService : queueAnnouncementNotifications()
+            NotificationService --> AnnouncementService : Queued
+          end
+        end
+
+        AnnouncementService --> AnnouncementController : PublishSuccess
+        AnnouncementController --> AnnouncementPage : Display success and status
+        AnnouncementPage -> Dashboard : refreshAnnouncements()
+        Dashboard --> Publisher : Show announcement
+      end
+    end
+  end
+end
+@enduml
