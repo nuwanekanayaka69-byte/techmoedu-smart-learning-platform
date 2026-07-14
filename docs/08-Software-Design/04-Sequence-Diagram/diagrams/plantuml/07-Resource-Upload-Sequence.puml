@@ -1,0 +1,155 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n07 - Resource Upload Sequence Diagram
+autonumber
+hide footbox
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor Teacher
+boundary ResourceUploadPage
+control ResourceController
+control ResourceService
+control AuthenticationService
+control AuthorizationService
+control TeacherRepository
+control CourseRepository
+control ResourceRepository
+control FileValidationService
+control VirusScanService
+collections FirebaseStorage
+database CloudFirestore
+control NotificationService
+control AuditService
+boundary TeacherDashboard
+
+Teacher -> ResourceUploadPage : Open resource upload page
+ResourceUploadPage -> ResourceController : loadUploadContext()
+ResourceController -> AuthenticationService : validateSession()
+AuthenticationService --> ResourceController : AuthenticatedTeacher
+ResourceController -> AuthorizationService : validateTeacherAccess(teacherId, instituteId)
+
+alt Access denied
+  AuthorizationService --> ResourceController : AccessDenied
+  ResourceController --> ResourceUploadPage : Display access error
+  ResourceUploadPage --> Teacher : Permission denied
+else Access granted
+  AuthorizationService --> ResourceController : TeacherContext
+
+  ResourceController -> ResourceService : loadAssignedCourses(teacherContext)
+  ResourceService -> TeacherRepository : findAssignments(teacherId, instituteId)
+  TeacherRepository -> CloudFirestore : query teacherAssignments
+  CloudFirestore --> TeacherRepository : AssignmentList
+  TeacherRepository --> ResourceService : AssignedCourses
+  ResourceService --> ResourceController : AssignedCourses
+  ResourceController --> ResourceUploadPage : Display course/category selectors
+
+  Teacher -> ResourceUploadPage : Select course, category and file
+  ResourceUploadPage -> FileValidationService : validateClientSide(file)
+
+  alt Client-side validation failed
+    FileValidationService --> ResourceUploadPage : ValidationErrors
+    ResourceUploadPage --> Teacher : Display file error
+  else Client-side validation passed
+    FileValidationService --> ResourceUploadPage : ValidatedFile
+    Teacher -> ResourceUploadPage : Click Upload
+    ResourceUploadPage -> ResourceController : uploadResource(metadata, file)
+    ResourceController -> ResourceService : uploadResource(context, metadata, file)
+
+    par Validate teacher-course assignment
+      ResourceService -> CourseRepository : findCourse(courseId)
+      CourseRepository -> CloudFirestore : get courses/{courseId}
+      CloudFirestore --> CourseRepository : Course
+      CourseRepository --> ResourceService : Course
+    and Check existing resource
+      ResourceService -> ResourceRepository : findDuplicate(courseId, fileHash)
+      ResourceRepository -> CloudFirestore : query resources by hash
+      CloudFirestore --> ResourceRepository : DuplicateStatus
+      ResourceRepository --> ResourceService : DuplicateStatus
+    end
+
+    alt Teacher not assigned / course inactive
+      ResourceService -> AuditService : logUploadFailure(teacherId, courseId, "COURSE_ACCESS_INVALID")
+      ResourceService --> ResourceController : CourseAccessDenied
+      ResourceController --> ResourceUploadPage : Display course error
+    else Duplicate resource found
+      ResourceService -> AuditService : logUploadFailure(teacherId, courseId, "DUPLICATE_RESOURCE")
+      ResourceService --> ResourceController : DuplicateResource
+      ResourceController --> ResourceUploadPage : Display duplicate message
+    else Course and resource valid
+      ResourceService -> FileValidationService : validateServerSide(file, metadata)
+      FileValidationService -> FileValidationService : validateTypeSizeNameAndHash()
+
+      alt Unsupported type / size exceeded / invalid filename
+        FileValidationService --> ResourceService : FileValidationError
+        ResourceService -> AuditService : logUploadFailure(teacherId, courseId, "FILE_VALIDATION_FAILED")
+        ResourceService --> ResourceController : FileRejected
+        ResourceController --> ResourceUploadPage : Display validation error
+      else File valid
+        FileValidationService --> ResourceService : SecureFileDescriptor
+
+        opt Malware scanning enabled
+          ResourceService -> VirusScanService : scan(file)
+          alt Malware detected / scan failed
+            VirusScanService --> ResourceService : ScanRejected(reason)
+            ResourceService -> AuditService : logUploadFailure(teacherId, courseId, "MALWARE_OR_SCAN_FAILURE")
+            ResourceService --> ResourceController : UploadRejected
+            ResourceController --> ResourceUploadPage : Display security error
+          else Scan passed
+            VirusScanService --> ResourceService : ScanPassed
+          end
+        end
+
+        ResourceService -> FirebaseStorage : upload(storagePath, file)
+        activate FirebaseStorage
+
+        alt Storage upload failed
+          FirebaseStorage --> ResourceService : StorageError
+          deactivate FirebaseStorage
+          ResourceService -> AuditService : logUploadFailure(teacherId, courseId, "STORAGE_FAILED")
+          ResourceService --> ResourceController : UploadFailed
+          ResourceController --> ResourceUploadPage : Display retry message
+        else File uploaded
+          FirebaseStorage --> ResourceService : StorageObject(url, path, checksum)
+          deactivate FirebaseStorage
+
+          ResourceService -> ResourceRepository : createMetadata(resourceData)
+          ResourceRepository -> CloudFirestore : create resources/{resourceId}
+          activate CloudFirestore
+
+          alt Metadata write failed
+            CloudFirestore --> ResourceRepository : WriteError
+            deactivate CloudFirestore
+            ResourceRepository --> ResourceService : MetadataSaveFailed
+            ResourceService -> FirebaseStorage : delete(storagePath)
+            FirebaseStorage --> ResourceService : Storage rollback completed
+            ResourceService -> AuditService : logUploadFailure(teacherId, courseId, "METADATA_FAILED")
+            ResourceService --> ResourceController : UploadRolledBack
+            ResourceController --> ResourceUploadPage : Display retry message
+          else Metadata saved
+            CloudFirestore --> ResourceRepository : ResourceSaved
+            deactivate CloudFirestore
+            ResourceRepository --> ResourceService : LearningResource
+
+            par Write audit log
+              ResourceService -> AuditService : logUploadSuccess(teacherId, resourceId, courseId)
+              AuditService -> CloudFirestore : create auditLogs/{logId}
+              CloudFirestore --> AuditService : Saved
+              AuditService --> ResourceService : Logged
+            and Notify enrolled students
+              opt Notifications enabled
+                ResourceService -> NotificationService : queueNewResourceNotification(courseId, resourceId)
+                NotificationService --> ResourceService : NotificationsQueued
+              end
+            end
+
+            ResourceService --> ResourceController : UploadSuccess(resource)
+            ResourceController --> ResourceUploadPage : Display success and resource link
+            ResourceUploadPage -> TeacherDashboard : refreshResourceWidgets()
+            TeacherDashboard --> Teacher : Show published resource
+          end
+        end
+      end
+    end
+  end
+end
+@enduml
