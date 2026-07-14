@@ -1,0 +1,141 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n11 - Report Generation Sequence Diagram
+autonumber
+hide footbox
+actor User as "Administrator / Teacher"
+boundary ReportPage
+control ReportController
+control ReportService
+control AuthenticationService
+control AuthorizationService
+control TemplateService
+control StudentRepository
+control AttendanceRepository
+control MarksRepository
+control FeeRepository
+control AnalyticsService
+database CloudFirestore
+control DocumentGenerator
+collections FirebaseStorage
+control NotificationService
+control AuditService
+boundary Dashboard
+
+User -> ReportPage : Open report page
+ReportPage -> ReportController : loadReportContext()
+ReportController -> AuthenticationService : validateSession()
+AuthenticationService --> ReportController : AuthenticatedUser
+ReportController -> AuthorizationService : validateReportAccess()
+
+alt Access denied
+  AuthorizationService --> ReportController : AccessDenied
+  ReportController --> ReportPage : Display permission error
+else Access granted
+  AuthorizationService --> ReportController : ReportContext
+  ReportController -> ReportService : loadReportTemplates()
+  ReportService -> TemplateService : findAvailableTemplates()
+  TemplateService -> CloudFirestore : query templates
+  CloudFirestore --> TemplateService : TemplateList
+  TemplateService --> ReportService : TemplateList
+  ReportService --> ReportController : TemplateList
+  ReportController --> ReportPage : Display templates and filters
+
+  User -> ReportPage : Select report, filters and format
+  User -> ReportPage : Click Generate
+  ReportPage -> ReportController : generateReport(request)
+  ReportController -> ReportService : generateReport(context, request)
+  ReportService -> AuthorizationService : validateFilterScope()
+  ReportService -> TemplateService : validateTemplate()
+
+  alt Invalid scope, filters or template
+    AuthorizationService --> ReportService : ValidationFailure
+    ReportService -> AuditService : logReportFailure()
+    ReportService --> ReportController : ValidationErrors
+    ReportController --> ReportPage : Display validation errors
+  else Valid request
+    AuthorizationService --> ReportService : ScopeApproved
+    TemplateService --> ReportService : TemplateDefinition
+
+    par Load student data
+      ReportService -> StudentRepository : queryStudents()
+      StudentRepository -> CloudFirestore : query students
+      CloudFirestore --> StudentRepository : StudentData
+      StudentRepository --> ReportService : StudentData
+    and Load attendance data
+      ReportService -> AttendanceRepository : queryAttendance()
+      AttendanceRepository -> CloudFirestore : query attendance
+      CloudFirestore --> AttendanceRepository : AttendanceData
+      AttendanceRepository --> ReportService : AttendanceData
+    and Load marks data
+      ReportService -> MarksRepository : queryMarks()
+      MarksRepository -> CloudFirestore : query marks
+      CloudFirestore --> MarksRepository : MarksData
+      MarksRepository --> ReportService : MarksData
+    and Load fee data
+      ReportService -> FeeRepository : queryFeeData()
+      FeeRepository -> CloudFirestore : query fees
+      CloudFirestore --> FeeRepository : FeeData
+      FeeRepository --> ReportService : FeeData
+    end
+
+    alt No data found
+      ReportService -> AuditService : logReportFailure(EMPTY_DATASET)
+      ReportService --> ReportController : EmptyReport
+      ReportController --> ReportPage : Display no-data message
+    else Dataset available
+      ReportService -> AnalyticsService : aggregateAndCalculate()
+      AnalyticsService --> ReportService : ReportDataset
+
+      alt Large report
+        ReportService -> CloudFirestore : create reportJob QUEUED
+        ReportService -> DocumentGenerator : generateAsync()
+        DocumentGenerator --> ReportService : JobAccepted
+        ReportService -> NotificationService : notifyReportQueued()
+        ReportService --> ReportController : ReportQueued
+        ReportController --> ReportPage : Display queued status
+      else Standard report
+        ReportService -> DocumentGenerator : generate()
+        alt Generation failed
+          DocumentGenerator --> ReportService : GenerationError
+          ReportService -> AuditService : logReportFailure(GENERATION_FAILED)
+          ReportService --> ReportController : GenerationFailed
+          ReportController --> ReportPage : Display error
+        else Document generated
+          DocumentGenerator --> ReportService : ReportFile
+          ReportService -> FirebaseStorage : upload(reportFile)
+          alt Storage failed
+            FirebaseStorage --> ReportService : StorageError
+            ReportService -> AuditService : logReportFailure(STORAGE_FAILED)
+            ReportService --> ReportController : StorageFailed
+            ReportController --> ReportPage : Display retry message
+          else Stored
+            FirebaseStorage --> ReportService : StorageObject
+            ReportService -> CloudFirestore : create reportHistory metadata
+            alt Metadata failed
+              CloudFirestore --> ReportService : WriteError
+              ReportService -> FirebaseStorage : delete(reportPath)
+              ReportService -> AuditService : logReportFailure(METADATA_FAILED)
+              ReportService --> ReportController : RolledBack
+              ReportController --> ReportPage : Display retry message
+            else Metadata saved
+              CloudFirestore --> ReportService : MetadataSaved
+              par Audit
+                ReportService -> AuditService : logReportSuccess()
+                AuditService -> CloudFirestore : create audit log
+              and Notify
+                opt Notification enabled
+                  ReportService -> NotificationService : sendReportReady()
+                end
+              end
+              ReportService --> ReportController : ReportReady
+              ReportController --> ReportPage : Display preview and secure link
+              ReportPage -> Dashboard : refreshRecentReports()
+              Dashboard --> User : Show generated report
+            end
+          end
+        end
+      end
+    end
+  end
+end
+@enduml

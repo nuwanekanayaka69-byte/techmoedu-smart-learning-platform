@@ -1,0 +1,246 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n12 - User Management Sequence Diagram
+autonumber
+hide footbox
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor SuperAdministrator as "Super Administrator"
+boundary UserManagementPage
+control UserController
+control UserService
+control AuthenticationService
+control AuthorizationService
+control UserRepository
+control RoleService
+control InstituteRepository
+control SessionService
+entity FirebaseAuthentication
+database CloudFirestore
+control NotificationService
+control AuditService
+boundary AdminDashboard
+
+SuperAdministrator -> UserManagementPage : Open user management module
+UserManagementPage -> UserController : loadUserManagementContext()
+UserController -> AuthenticationService : validateSession()
+AuthenticationService --> UserController : AuthenticatedAdministrator
+UserController -> AuthorizationService : validateSuperAdminPermission()
+
+alt Access denied
+  AuthorizationService --> UserController : AccessDenied
+  UserController --> UserManagementPage : Display permission error
+  UserManagementPage --> SuperAdministrator : User management not allowed
+else Access granted
+  AuthorizationService --> UserController : SuperAdminContext
+
+  UserController -> UserService : loadUsersAndFilters(context)
+  UserService -> UserRepository : searchUsers(defaultFilters)
+  UserRepository -> CloudFirestore : query users and profiles
+  CloudFirestore --> UserRepository : UserList
+  UserRepository --> UserService : UserList
+  UserService --> UserController : UserList
+  UserController --> UserManagementPage : Display users, roles and statuses
+
+  SuperAdministrator -> UserManagementPage : Select Create / Update / Suspend / Activate / Delete
+  UserManagementPage -> UserController : submitUserAction(action, data)
+  UserController -> UserService : executeUserAction(context, action, data)
+
+  UserService -> AuthorizationService : validateActionPermission(context, action, targetUser)
+  UserService -> UserService : validateInputAndBusinessRules()
+
+  alt Validation or authorization failed
+    AuthorizationService --> UserService : ActionDenied(reason)
+    UserService -> AuditService : logUserManagementFailure(adminId, action, reason)
+    AuditService --> UserService : Logged
+    UserService --> UserController : ActionRejected
+    UserController --> UserManagementPage : Display errors
+  else Action permitted
+    AuthorizationService --> UserService : ActionApproved
+
+    alt Create user
+      UserService -> UserRepository : findByEmail(email)
+      UserRepository -> CloudFirestore : query user by email
+      CloudFirestore --> UserRepository : ExistingUser / None
+      UserRepository --> UserService : DuplicateStatus
+
+      alt Duplicate email
+        UserService -> AuditService : logUserManagementFailure(adminId, "CREATE", "DUPLICATE_EMAIL")
+        UserService --> UserController : DuplicateEmail
+        UserController --> UserManagementPage : Display duplicate email error
+      else Email available
+        UserService -> InstituteRepository : validateInstituteAssignments(instituteIds)
+        InstituteRepository -> CloudFirestore : query institutes
+        CloudFirestore --> InstituteRepository : InstituteValidation
+        InstituteRepository --> UserService : InstituteValidation
+
+        alt Institute scope invalid
+          UserService -> AuditService : logUserManagementFailure(adminId, "CREATE", "INSTITUTE_INVALID")
+          UserService --> UserController : InstituteValidationError
+          UserController --> UserManagementPage : Display institute error
+        else Institute scope valid
+          UserService -> FirebaseAuthentication : createUser(email, temporaryPassword)
+          activate FirebaseAuthentication
+
+          alt Authentication account creation failed
+            FirebaseAuthentication --> UserService : AuthenticationError
+            deactivate FirebaseAuthentication
+            UserService -> AuditService : logUserManagementFailure(adminId, "CREATE", "AUTH_FAILED")
+            UserService --> UserController : UserCreationFailed
+            UserController --> UserManagementPage : Display retry message
+          else Authentication account created
+            FirebaseAuthentication --> UserService : AuthUser(uid)
+            deactivate FirebaseAuthentication
+
+            UserService -> RoleService : validateAndAssignRoles(uid, roles, instituteScope)
+            RoleService --> UserService : RoleAssignments
+
+            UserService -> UserRepository : createProfile(uid, data, roleAssignments)
+            UserRepository -> CloudFirestore : begin atomic user transaction
+            activate CloudFirestore
+            CloudFirestore -> CloudFirestore : create users/{uid}
+            CloudFirestore -> CloudFirestore : create userRoles and memberships
+
+            alt Profile transaction failed
+              CloudFirestore --> UserRepository : TransactionError
+              deactivate CloudFirestore
+              UserRepository --> UserService : ProfileCreationFailed
+              UserService -> FirebaseAuthentication : deleteUser(uid)
+              FirebaseAuthentication --> UserService : Auth rollback completed
+              UserService -> AuditService : logUserManagementFailure(adminId, "CREATE", "PROFILE_FAILED")
+              UserService --> UserController : UserCreationRolledBack
+              UserController --> UserManagementPage : Display retry message
+            else User created
+              CloudFirestore --> UserRepository : UserProfileCreated
+              deactivate CloudFirestore
+              UserRepository --> UserService : UserProfile
+
+              UserService -> NotificationService : sendAccountCreatedNotification(uid)
+              NotificationService --> UserService : NotificationQueued
+              UserService -> AuditService : logUserManagementSuccess(adminId, uid, "CREATE")
+              AuditService -> CloudFirestore : create audit log
+              AuditService --> UserService : Logged
+              UserService --> UserController : UserCreated(user)
+              UserController --> UserManagementPage : Display created user
+            end
+          end
+        end
+      end
+
+    else Update user or roles
+      UserService -> UserRepository : findById(targetUserId)
+      UserRepository -> CloudFirestore : get user profile
+      CloudFirestore --> UserRepository : UserProfile
+      UserRepository --> UserService : UserProfile
+
+      alt User not found / protected account
+        UserService -> AuditService : logUserManagementFailure(adminId, action, "TARGET_INVALID")
+        UserService --> UserController : TargetRejected
+        UserController --> UserManagementPage : Display target error
+      else Target valid
+        UserService -> RoleService : validateRoleChanges(currentRoles, requestedRoles)
+        RoleService --> UserService : RoleChangeResult
+
+        alt Invalid role transition
+          UserService -> AuditService : logUserManagementFailure(adminId, action, "ROLE_TRANSITION_INVALID")
+          UserService --> UserController : RoleChangeRejected
+          UserController --> UserManagementPage : Display role error
+        else Role transition valid
+          UserService -> UserRepository : updateUserAndRoles(targetUserId, changes)
+          UserRepository -> CloudFirestore : begin atomic update transaction
+          activate CloudFirestore
+          CloudFirestore -> CloudFirestore : update user profile
+          CloudFirestore -> CloudFirestore : update roles and memberships
+
+          alt Update transaction failed
+            CloudFirestore --> UserRepository : TransactionError
+            deactivate CloudFirestore
+            UserRepository --> UserService : UpdateFailed
+            UserService -> AuditService : logUserManagementFailure(adminId, action, "TRANSACTION_FAILED")
+            UserService --> UserController : UpdateFailed
+            UserController --> UserManagementPage : Display retry message
+          else Update successful
+            CloudFirestore --> UserRepository : Updated
+            deactivate CloudFirestore
+            UserRepository --> UserService : UpdatedUser
+            UserService -> SessionService : invalidateSessionsIfRequired(targetUserId, changes)
+            SessionService --> UserService : SessionsHandled
+            UserService -> NotificationService : sendAccountChangedNotification(targetUserId, action)
+            NotificationService --> UserService : NotificationQueued
+            UserService -> AuditService : logUserManagementSuccess(adminId, targetUserId, action)
+            UserService --> UserController : UpdateSuccess(user)
+            UserController --> UserManagementPage : Display updated user
+          end
+        end
+      end
+
+    else Suspend / Activate user
+      UserService -> UserRepository : findById(targetUserId)
+      UserRepository -> CloudFirestore : get user
+      CloudFirestore --> UserRepository : UserProfile
+      UserRepository --> UserService : UserProfile
+
+      alt Protected or invalid target
+        UserService -> AuditService : logUserManagementFailure(adminId, action, "TARGET_INVALID")
+        UserService --> UserController : TargetRejected
+        UserController --> UserManagementPage : Display target error
+      else Target valid
+        UserService -> CloudFirestore : begin account status transaction
+        activate CloudFirestore
+        CloudFirestore -> CloudFirestore : update account status
+        CloudFirestore -> CloudFirestore : create status history
+        CloudFirestore --> UserService : StatusUpdated
+        deactivate CloudFirestore
+
+        opt Suspend user
+          UserService -> FirebaseAuthentication : disableUser(targetUserId)
+          FirebaseAuthentication --> UserService : Disabled
+          UserService -> SessionService : revokeAllSessions(targetUserId)
+          SessionService --> UserService : SessionsRevoked
+        end
+
+        opt Activate user
+          UserService -> FirebaseAuthentication : enableUser(targetUserId)
+          FirebaseAuthentication --> UserService : Enabled
+        end
+
+        UserService -> NotificationService : sendStatusChangedNotification(targetUserId, action)
+        NotificationService --> UserService : NotificationQueued
+        UserService -> AuditService : logUserManagementSuccess(adminId, targetUserId, action)
+        UserService --> UserController : StatusChangeSuccess
+        UserController --> UserManagementPage : Display updated status
+      end
+
+    else Delete / Anonymize user
+      UserService -> AuthorizationService : validateDeletionPolicy(targetUserId)
+      AuthorizationService --> UserService : DeletionPolicyResult
+
+      alt Deletion not allowed
+        UserService -> AuditService : logUserManagementFailure(adminId, "DELETE", "POLICY_DENIED")
+        UserService --> UserController : DeletionRejected
+        UserController --> UserManagementPage : Display policy message
+      else Deletion allowed
+        UserService -> UserRepository : anonymizeOrDelete(targetUserId)
+        UserRepository -> CloudFirestore : begin deletion/anonymization transaction
+        activate CloudFirestore
+        CloudFirestore -> CloudFirestore : anonymize profile and dependent references
+        CloudFirestore -> CloudFirestore : preserve required audit records
+        CloudFirestore --> UserRepository : DeletionCompleted
+        deactivate CloudFirestore
+        UserRepository --> UserService : DeletionResult
+
+        UserService -> FirebaseAuthentication : deleteUser(targetUserId)
+        FirebaseAuthentication --> UserService : AuthAccountDeleted
+        UserService -> SessionService : revokeAllSessions(targetUserId)
+        SessionService --> UserService : SessionsRevoked
+        UserService -> AuditService : logUserManagementSuccess(adminId, targetUserId, "DELETE")
+        UserService --> UserController : DeletionSuccess
+        UserController --> UserManagementPage : Remove user from active list
+      end
+    end
+
+    UserManagementPage -> AdminDashboard : refreshUserMetrics()
+    AdminDashboard --> SuperAdministrator : Show updated user statistics
+  end
+end
+@enduml
