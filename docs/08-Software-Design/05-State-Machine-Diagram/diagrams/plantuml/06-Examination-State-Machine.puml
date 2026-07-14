@@ -1,0 +1,265 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n06 - Examination State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> Draft : createExamination() / initializeExaminationRecord()
+
+state Draft {
+  entry / assignExaminationId()
+  do / captureExaminationDetails()
+  exit / updateDraftTimestamp()
+}
+
+Draft --> UnderReview : submitForReview() [mandatoryFieldsComplete] / lockReviewFields()
+Draft --> Cancelled : cancelDraft() / preserveDraftHistory()
+Draft --> Expired : expireDraft() [draftRetentionExceeded] / markDraftExpired()
+
+state UnderReview {
+  entry / assignReviewer()
+  do / validateSchedule()
+  do / validateCourseAndTeacherScope()
+  do / validateMarkingScheme()
+  do / validateRoomOrOnlineConfiguration()
+  exit / recordReviewDecision()
+}
+
+UnderReview --> ChangesRequired : requestChanges() [reviewIssuesFound] / publishReviewComments()
+UnderReview --> Approved : approveExamination() [reviewPassed && courseActive] / freezeApprovedDefinition()
+UnderReview --> Rejected : rejectExamination() [criticalIssueFound] / recordRejectionReason()
+
+state ChangesRequired {
+  entry / notifyExaminationOwner()
+  do / awaitRevision()
+}
+ChangesRequired --> Draft : reviseExamination() [revisionWindowOpen] / unlockEditableFields()
+ChangesRequired --> Rejected : revisionDeadlinePassed() / closeExaminationRequest()
+
+state Approved {
+  entry / recordApproval()
+  do / awaitScheduling()
+}
+
+Approved --> Scheduled : scheduleExamination() [dateTimeValid && resourcesAvailable] / reserveResources()
+Approved --> Suspended : suspendBeforeScheduling() [policyViolation] / blockScheduling()
+
+state Scheduled {
+  entry / publishSchedule()
+  entry / notifyEligibleStudents()
+  do / awaitOpeningWindow()
+}
+
+Scheduled --> Open : openExamination() [openingTimeReached && invigilatorAssigned] / enableExaminationAccess()
+Scheduled --> Rescheduled : rescheduleExamination() [authorizedChange] / releasePreviousResources()
+Scheduled --> Cancelled : cancelScheduledExamination() [administratorApproved] / notifyStakeholders()
+Scheduled --> Expired : openingWindowMissed() [noAuthorizedExtension] / closeExamination()
+
+state Rescheduled {
+  entry / recordRescheduleReason()
+  entry / notifyStakeholders()
+  do / awaitNewSchedule()
+}
+Rescheduled --> Scheduled : confirmNewSchedule() [newScheduleValid] / reserveResources()
+Rescheduled --> Cancelled : cancelRescheduledExamination() [administratorApproved]
+
+state Open {
+  entry / recordOpenedAt()
+  entry / enableCandidateAccess()
+  do / verifyCandidatesAndEnvironment()
+  exit / recordOpenWindowClosure()
+}
+
+Open --> InProgress : startExamination() [candidateValidated && environmentReady] / createAttemptRecords()
+Open --> AccessIssue : accessValidationFailed() / openSupportCase()
+Open --> Cancelled : emergencyCancel() [authorizedEmergency] / terminateAccess()
+
+state AccessIssue {
+  entry / notifySupportTeam()
+  do / resolveAccessOrIdentityIssue()
+}
+AccessIssue --> Open : issueResolved() [openingWindowOpen] / restoreCandidateAccess()
+AccessIssue --> CandidateRejected : identityRejected() / denyAttempt()
+AccessIssue --> Expired : openingWindowClosed() / closeAttemptRequest()
+
+state InProgress {
+  entry / recordStartTime()
+  do / monitorExaminationSession()
+  do / autosaveResponses()
+  exit / recordEndTime()
+}
+
+InProgress --> Submitted : submitAttempt() [submissionValid] / lockResponses()
+InProgress --> AutoSubmitted : timeExpired() / autoSubmitResponses()
+InProgress --> Interrupted : systemOrNetworkFailure() / preserveRecoverySnapshot()
+InProgress --> IntegrityReview : suspiciousActivityDetected() / flagAttempt()
+
+state Interrupted {
+  entry / recordInterruption()
+  do / awaitRecoveryDecision()
+}
+Interrupted --> InProgress : resumeAttempt() [recoveryAllowed && timeRemaining] / restoreSnapshot()
+Interrupted --> AutoSubmitted : recoveryWindowExpired() / submitRecoveredResponses()
+Interrupted --> Cancelled : attemptInvalidated() [administratorApproved]
+
+state IntegrityReview {
+  entry / freezeAttempt()
+  entry / notifyAuthorizedReviewer()
+  do / reviewIntegrityEvidence()
+}
+IntegrityReview --> Submitted : integrityCleared() / releaseAttemptForMarking()
+IntegrityReview --> CandidateRejected : integrityViolationConfirmed() / invalidateAttempt()
+IntegrityReview --> AdministratorReview : furtherReviewRequired() / escalateCase()
+
+state Submitted {
+  entry / recordSubmissionTime()
+  entry / createSubmissionAudit()
+  do / awaitCompletionValidation()
+}
+
+state AutoSubmitted {
+  entry / recordAutomaticSubmission()
+  entry / notifyCandidate()
+  do / awaitCompletionValidation()
+}
+
+Submitted --> Completed : validateSubmission() [responsesPersisted && submissionComplete] / finalizeAttempt()
+AutoSubmitted --> Completed : validateSubmission() [responsesPersisted] / finalizeAttempt()
+Submitted --> SubmissionFailed : persistenceValidationFailed() / openRecoveryCase()
+AutoSubmitted --> SubmissionFailed : persistenceValidationFailed() / openRecoveryCase()
+
+state SubmissionFailed {
+  entry / logSubmissionFailure()
+  do / recoverResponsesAndMetadata()
+}
+SubmissionFailed --> Submitted : recoverySucceeded() / restoreSubmission()
+SubmissionFailed --> AdministratorReview : recoveryNeedsApproval() / escalateCase()
+SubmissionFailed --> Cancelled : recoveryFailedPermanently() / invalidateAttempt()
+
+state Completed {
+  entry / closeCandidateAccess()
+  entry / finalizeAttemptStatistics()
+  do / awaitMarkingPhase()
+}
+
+Completed --> MarksPending : beginMarking() [allAttemptsClosed] / createMarkingTasks()
+Completed --> AdministratorReview : completionDisputeRaised() / openReviewCase()
+
+state MarksPending {
+  entry / assignMarkers()
+  do / monitorMarkingProgress()
+  do / validateMarkEntryCompleteness()
+}
+
+MarksPending --> ResultsReview : marksSubmitted() [allMarksEntered] / calculateResults()
+MarksPending --> MarkingIssue : markingValidationFailed() / returnForCorrection()
+
+state MarkingIssue {
+  entry / publishMarkingErrors()
+  do / awaitMarkCorrection()
+}
+MarkingIssue --> MarksPending : correctMarks() [correctionAuthorized] / reopenMarkingTasks()
+MarkingIssue --> AdministratorReview : correctionDeadlinePassed() / escalateCase()
+
+state ResultsReview {
+  entry / calculateGradeDistribution()
+  do / verifyResultIntegrity()
+  do / awaitPublicationApproval()
+}
+
+ResultsReview --> ResultsPublished : publishResults() [resultsApproved && publicationAuthorized] / notifyStudents()
+ResultsReview --> MarksPending : returnMarksForCorrection() [correctableResultIssue] / reopenMarkingTasks()
+ResultsReview --> Suspended : suspendPublication() [integrityConcern] / blockResultAccess()
+
+state ResultsPublished {
+  entry / setPublishedAt()
+  entry / enableStudentResultAccess()
+  do / preservePublishedVersion()
+}
+
+ResultsPublished --> Archived : archiveExamination() [appealWindowClosed && reportsFinalized && retentionRulesSatisfied] / preserveAuditHistory()
+ResultsPublished --> AdministratorReview : appealReceived() [appealWindowOpen] / openAppealCase()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewExaminationEvidence()
+  exit / recordReviewOutcome()
+}
+AdministratorReview --> Scheduled : reviewRequiresReschedule() [rescheduleApproved]
+AdministratorReview --> MarksPending : reviewRequiresRemarking() [remarkingApproved]
+AdministratorReview --> ResultsReview : reviewClearedForPublication()
+AdministratorReview --> Cancelled : reviewRequiresCancellation()
+AdministratorReview --> Rejected : reviewRejectsDefinition()
+
+state Suspended {
+  entry / blockExaminationOperations()
+  entry / notifyStakeholders()
+  do / awaitRemediation()
+}
+Suspended --> Scheduled : reactivateScheduledExamination() [issuesResolved && administratorApproved]
+Suspended --> ResultsReview : resumePublicationReview() [integrityCleared]
+Suspended --> Cancelled : cancelSuspendedExamination() [remediationFailed]
+
+state CandidateRejected {
+  entry / denyCandidateAttempt()
+  entry / preserveDecisionEvidence()
+}
+CandidateRejected --> Archived : archiveRejectedAttempt() [reviewClosed]
+
+state Rejected {
+  entry / notifyExaminationOwner()
+  entry / preserveReviewHistory()
+}
+Rejected --> [*] : closeExaminationRequest()
+
+state Cancelled {
+  entry / terminateAccess()
+  entry / notifyStudentsAndStaff()
+  entry / releaseResources()
+  do / preserveCancellationHistory()
+}
+Cancelled --> Archived : archiveCancelledExamination() [closureComplete]
+
+state Expired {
+  entry / notifyExpiry()
+  entry / releaseResources()
+  do / preserveScheduleHistory()
+}
+Expired --> Archived : archiveExpiredExamination() [closureComplete]
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+
+Archived --> [*] : lifecycleComplete()
+
+note right of Scheduled
+Opening requires a valid schedule,
+active course, available resources,
+and assigned invigilation.
+end note
+
+note right of InProgress
+Responses must be autosaved and
+protected by integrity controls.
+end note
+
+note right of MarksPending
+All attempts must be closed before
+marking tasks are activated.
+end note
+
+note right of ResultsPublished
+Published results remain versioned
+and subject to the appeal window.
+end note
+@enduml
