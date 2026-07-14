@@ -1,0 +1,142 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n09 - Parent Student Linking Sequence Diagram
+autonumber
+hide footbox
+
+actor Parent
+boundary ParentLinkPage
+control ParentLinkController
+control ParentLinkService
+control AuthenticationService
+control AuthorizationService
+control ParentRepository
+control StudentRepository
+control InstituteRepository
+control VerificationService
+control LinkRepository
+database CloudFirestore
+control NotificationService
+control AuditService
+boundary ParentDashboard
+
+Parent -> ParentLinkPage : Open linking page
+ParentLinkPage -> ParentLinkController : loadLinkingContext()
+ParentLinkController -> AuthenticationService : validateSession()
+AuthenticationService --> ParentLinkController : AuthenticatedParent
+ParentLinkController -> AuthorizationService : validateParentRoleAndInstitute()
+
+alt Access denied
+  AuthorizationService --> ParentLinkController : AccessDenied
+  ParentLinkController --> ParentLinkPage : Display permission error
+else Access granted
+  AuthorizationService --> ParentLinkController : ParentContext
+  ParentLinkController -> ParentLinkService : loadCurrentLinks(parentId)
+  ParentLinkService -> LinkRepository : findByParent(parentId)
+  LinkRepository -> CloudFirestore : query parentStudentLinks
+  CloudFirestore --> LinkRepository : ExistingLinks
+  LinkRepository --> ParentLinkService : ExistingLinks
+  ParentLinkService --> ParentLinkController : ExistingLinks
+  ParentLinkController --> ParentLinkPage : Display linked children
+
+  Parent -> ParentLinkPage : Enter student number and verification data
+  Parent -> ParentLinkPage : Submit link request
+  ParentLinkPage -> ParentLinkController : requestLink(...)
+  ParentLinkController -> ParentLinkService : requestLink(context,...)
+
+  par Load parent
+    ParentLinkService -> ParentRepository : findById(parentId)
+    ParentRepository -> CloudFirestore : get parent profile
+    CloudFirestore --> ParentRepository : ParentProfile
+    ParentRepository --> ParentLinkService : ParentProfile
+  and Load student
+    ParentLinkService -> StudentRepository : findByStudentNumber()
+    StudentRepository -> CloudFirestore : query student
+    CloudFirestore --> StudentRepository : StudentProfile
+    StudentRepository --> ParentLinkService : StudentProfile
+  end
+
+  ParentLinkService -> InstituteRepository : validateSharedInstitute()
+  InstituteRepository -> CloudFirestore : query memberships
+  CloudFirestore --> InstituteRepository : InstituteValidation
+  InstituteRepository --> ParentLinkService : InstituteValidation
+
+  alt Student or institute invalid
+    ParentLinkService -> AuditService : logLinkFailure()
+    ParentLinkService --> ParentLinkController : Rejected
+    ParentLinkController --> ParentLinkPage : Display error
+  else Valid scope
+    ParentLinkService -> LinkRepository : countActiveLinks(parentId)
+    LinkRepository -> CloudFirestore : count active links
+    CloudFirestore --> LinkRepository : linkCount
+    LinkRepository --> ParentLinkService : linkCount
+
+    alt Link limit reached
+      ParentLinkService -> AuditService : logLinkFailure(LIMIT)
+      ParentLinkService --> ParentLinkController : LimitReached
+      ParentLinkController --> ParentLinkPage : Display limit message
+    else Capacity available
+      ParentLinkService -> LinkRepository : findDuplicate(parentId, studentId)
+      LinkRepository -> CloudFirestore : query existing link
+      CloudFirestore --> LinkRepository : DuplicateStatus
+      LinkRepository --> ParentLinkService : DuplicateStatus
+
+      alt Duplicate exists
+        ParentLinkService -> AuditService : logLinkFailure(DUPLICATE)
+        ParentLinkService --> ParentLinkController : AlreadyLinked
+        ParentLinkController --> ParentLinkPage : Display duplicate message
+      else New link
+        ParentLinkService -> VerificationService : verifyRelationship()
+        alt Verification failed
+          VerificationService --> ParentLinkService : VerificationFailed
+          ParentLinkService -> AuditService : logLinkFailure(VERIFY)
+          ParentLinkService --> ParentLinkController : VerificationError
+          ParentLinkController --> ParentLinkPage : Display verification error
+        else Verification passed
+          VerificationService --> ParentLinkService : Verified
+
+          opt Institute approval required
+            ParentLinkService -> CloudFirestore : create approval request
+            ParentLinkService -> NotificationService : notify administrator
+            ParentLinkService --> ParentLinkController : PendingApproval
+            ParentLinkController --> ParentLinkPage : Display pending status
+          else Immediate linking allowed
+            ParentLinkService -> LinkRepository : createLink()
+            LinkRepository -> CloudFirestore : begin atomic transaction
+            activate CloudFirestore
+            CloudFirestore -> CloudFirestore : create link record
+            CloudFirestore -> CloudFirestore : update parent references
+            CloudFirestore -> CloudFirestore : update student references
+
+            alt Transaction failed
+              CloudFirestore --> LinkRepository : TransactionError
+              deactivate CloudFirestore
+              LinkRepository --> ParentLinkService : LinkCreationFailed
+              ParentLinkService -> AuditService : logLinkFailure(TRANSACTION)
+              ParentLinkService --> ParentLinkController : LinkFailed
+              ParentLinkController --> ParentLinkPage : Display retry message
+            else Transaction successful
+              CloudFirestore --> LinkRepository : LinkCreated
+              deactivate CloudFirestore
+              LinkRepository --> ParentLinkService : ParentStudentLink
+
+              par Audit
+                ParentLinkService -> AuditService : logLinkSuccess()
+                AuditService -> CloudFirestore : create audit log
+                CloudFirestore --> AuditService : Saved
+              and Notify
+                ParentLinkService -> NotificationService : sendLinkConfirmation()
+                NotificationService --> ParentLinkService : Queued
+              end
+
+              ParentLinkService --> ParentLinkController : LinkSuccess
+              ParentLinkController --> ParentLinkPage : Display success
+              ParentLinkPage -> ParentDashboard : refreshLinkedChildren()
+              ParentDashboard --> Parent : Show linked student
+            end
+          end
+        end
+      end
+    end
+  end
+end
+@enduml
