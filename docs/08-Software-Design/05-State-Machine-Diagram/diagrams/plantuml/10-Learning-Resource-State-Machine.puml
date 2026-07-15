@@ -1,0 +1,278 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n10 - Learning Resource State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> Selected : selectResource() / initializeResourceRecord()
+
+state Selected {
+  entry / assignResourceId()
+  do / captureFileAndContext()
+}
+
+Selected --> ValidationPending : beginValidation() [fileSelected] / lockInitialFileReference()
+Selected --> Cancelled : cancelSelection() / discardTemporaryReference()
+Selected --> Expired : selectionExpired() [temporaryReferenceExpired] / cleanTemporaryData()
+
+state ValidationPending {
+  entry / loadValidationPolicy()
+  do / validateFileType()
+  do / validateFileSize()
+  do / validateTeacherCourseAndInstituteScope()
+  exit / recordValidationOutcome()
+}
+
+ValidationPending --> ValidationFailed : validationFailed() [correctableValidationError] / publishValidationErrors()
+ValidationPending --> UnsupportedFile : unsupportedFormat() / recordUnsupportedType()
+ValidationPending --> SecurityScanning : validationPassed() [typeAllowed && sizeAllowed && scopeValid] / createScanJob()
+
+state ValidationFailed {
+  entry / notifyUploader()
+  do / awaitReplacementOrCorrection()
+}
+ValidationFailed --> Selected : replaceFile() [replacementAllowed] / resetValidation()
+ValidationFailed --> Rejected : correctionWindowClosed() / closeResourceRequest()
+
+state UnsupportedFile {
+  entry / notifyUnsupportedFormat()
+  do / awaitSupportedReplacement()
+}
+UnsupportedFile --> Selected : selectSupportedFile() / resetValidation()
+UnsupportedFile --> Rejected : replacementDeadlinePassed()
+
+state SecurityScanning {
+  entry / quarantineTemporaryFile()
+  do / scanForMalware()
+  do / inspectFileSignature()
+  do / evaluateContentRisk()
+}
+
+SecurityScanning --> Uploading : scanPassed() [noThreatDetected] / releaseFromQuarantine()
+SecurityScanning --> SecurityThreatDetected : threatDetected() / isolateFile()
+SecurityScanning --> ProcessingFailed : scanServiceFailed() / queueScanRetry()
+
+state SecurityThreatDetected {
+  entry / blockUpload()
+  entry / notifySecurityAdministrator()
+  do / preserveSecurityEvidence()
+}
+SecurityThreatDetected --> Rejected : confirmThreat() / permanentlyRejectResource()
+SecurityThreatDetected --> AdministratorReview : falsePositiveAppeal() [appealAllowed] / openSecurityReview()
+
+state ProcessingFailed {
+  entry / logProcessingFailure()
+  do / retryBackgroundProcessing()
+}
+ProcessingFailed --> SecurityScanning : retryScan() [retryAllowed]
+ProcessingFailed --> UploadFailed : retryLimitReached()
+ProcessingFailed --> AdministratorReview : serviceFailureRequiresReview()
+
+state Uploading {
+  entry / createStoragePath()
+  do / uploadToFirebaseStorage()
+  do / monitorUploadProgress()
+}
+
+Uploading --> MetadataPending : uploadCompleted() [storageObjectCreated] / createResourceMetadataShell()
+Uploading --> UploadFailed : uploadFailed() / preserveRetryContext()
+Uploading --> Cancelled : cancelUpload() [cancellationAllowed] / deletePartialUpload()
+
+state UploadFailed {
+  entry / notifyUploader()
+  do / awaitRetryDecision()
+}
+UploadFailed --> Uploading : retryUpload() [retryAllowed] / resumeOrRestartUpload()
+UploadFailed --> AdministratorReview : retryLimitReached() / openSupportCase()
+UploadFailed --> Cancelled : abandonUpload() / deletePartialUpload()
+
+state MetadataPending {
+  entry / loadMetadataForm()
+  do / captureTitleDescriptionTagsAndVisibility()
+  do / associateCourseAndLesson()
+}
+
+MetadataPending --> UnderReview : submitMetadata() [metadataComplete && ownershipValid] / lockReviewVersion()
+MetadataPending --> MetadataInvalid : metadataValidationFailed() / publishMetadataErrors()
+MetadataPending --> Cancelled : cancelBeforeReview() / deleteStorageObject()
+
+state MetadataInvalid {
+  entry / notifyMetadataErrors()
+  do / awaitMetadataCorrection()
+}
+MetadataInvalid --> MetadataPending : correctMetadata() [correctionWindowOpen]
+MetadataInvalid --> Rejected : correctionDeadlinePassed() / closeResourceRequest()
+
+state UnderReview {
+  entry / assignReviewer()
+  do / verifyAcademicRelevance()
+  do / verifyCopyrightAndPolicyCompliance()
+  do / verifyCourseVisibilityScope()
+  exit / recordReviewDecision()
+}
+
+UnderReview --> ReviewChangesRequired : requestChanges() [reviewIssuesFound] / publishReviewComments()
+UnderReview --> Approved : approveResource() [reviewPassed && publisherAuthorized] / freezeApprovedVersion()
+UnderReview --> Rejected : rejectResource() [criticalIssueFound] / recordRejectionReason()
+UnderReview --> AdministratorReview : escalationRequired() / openReviewCase()
+
+state ReviewChangesRequired {
+  entry / notifyUploader()
+  do / awaitResourceRevision()
+}
+ReviewChangesRequired --> MetadataPending : reviseMetadataOnly() [metadataCorrectionSufficient]
+ReviewChangesRequired --> Selected : replaceResourceFile() [fileReplacementRequired] / preserveVersionHistory()
+ReviewChangesRequired --> Rejected : revisionDeadlinePassed()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewSecurityAcademicAndPolicyEvidence()
+  exit / recordReviewOutcome()
+}
+
+AdministratorReview --> SecurityScanning : securityReviewCleared() / resumeScanning()
+AdministratorReview --> UnderReview : contentReviewCleared() / resumeReview()
+AdministratorReview --> Uploading : retryApproved() / restartUpload()
+AdministratorReview --> Approved : manualApprovalGranted() / freezeApprovedVersion()
+AdministratorReview --> Rejected : reviewRejected() / preserveDecisionHistory()
+AdministratorReview --> Deleted : deletionRequired() / removeStorageObject()
+
+state Approved {
+  entry / recordApproval()
+  entry / createApprovedVersion()
+  do / awaitPublication()
+}
+
+Approved --> Publishing : publishResource() [publicationAuthorized] / createPublicationJob()
+Approved --> Scheduled : schedulePublication() [futurePublishTime] / createScheduledJob()
+Approved --> Suspended : suspendBeforePublication() [policyOrSecurityConcern] / blockPublication()
+
+state Scheduled {
+  entry / recordScheduledTime()
+  do / awaitPublishTime()
+}
+Scheduled --> Publishing : publishAtScheduledTime() [publishTimeReached]
+Scheduled --> Approved : reschedulePublication() [authorizedChange]
+Scheduled --> Cancelled : cancelScheduledPublication() [administratorApproved]
+Scheduled --> Suspended : suspendScheduledPublication() [integrityConcern]
+
+state Publishing {
+  entry / recordPublishingStarted()
+  do / updateVisibilityIndexes()
+  do / generatePreviewAndDeliveryMetadata()
+}
+
+Publishing --> Published : publicationSucceeded() [visibilityUpdated && metadataIndexed] / enableStudentAccess()
+Publishing --> PublicationFailed : publicationFailed() / recordPublicationFailure()
+
+state PublicationFailed {
+  entry / notifyPublisher()
+  do / retryPublication()
+}
+PublicationFailed --> Publishing : retryPublication() [retryAllowed]
+PublicationFailed --> AdministratorReview : retryLimitReached()
+PublicationFailed --> Unpublished : abandonPublication() [administratorApproved] / hideResource()
+
+state Published {
+  entry / setPublishedAt()
+  entry / preservePublishedVersion()
+  do / allowAuthorizedStudentAccess()
+}
+
+Published --> Updated : updateResource() [uploaderAuthorized] / createDraftVersion()
+Published --> Unpublished : unpublishResource() [authorizedReason] / revokeStudentAccess()
+Published --> Suspended : suspendPublishedResource() [securityOrPolicyIssue] / blockResourceAccess()
+Published --> Archived : archiveResource() [courseClosed && retentionRulesSatisfied] / preserveAuditHistory()
+Published --> Deleted : deleteResource() [deletionPolicyAllows && administratorApproved] / removeStorageObject()
+
+state Updated {
+  entry / preservePreviousVersion()
+  entry / createEditableVersion()
+  do / awaitRevisionCompletion()
+}
+Updated --> ValidationPending : submitUpdatedFile() [fileChanged] / validateNewVersion()
+Updated --> MetadataPending : submitMetadataUpdate() [metadataOnlyChange]
+Updated --> Published : cancelUpdate() / preserveCurrentPublishedVersion()
+
+state Suspended {
+  entry / revokeStudentAccess()
+  entry / notifyUploaderAndAdministrator()
+  do / awaitRemediation()
+}
+Suspended --> Approved : resumeBeforePublication() [issuesResolved && administratorApproved]
+Suspended --> Published : restorePublishedResource() [issuesResolved && publicationStillValid]
+Suspended --> Unpublished : unpublishSuspendedResource() [administratorApproved]
+Suspended --> Deleted : deleteUnsafeResource() [criticalThreatConfirmed]
+
+state Unpublished {
+  entry / hideResource()
+  entry / revokeStudentAccess()
+  do / preserveVersionHistory()
+}
+Unpublished --> Approved : republishResource() [republishAuthorized] / revalidatePublication()
+Unpublished --> Archived : archiveUnpublishedResource() [retentionRulesSatisfied]
+Unpublished --> Deleted : deleteUnpublishedResource() [deletionPolicyAllows]
+
+state Rejected {
+  entry / notifyUploader()
+  entry / preserveReviewHistory()
+}
+Rejected --> Deleted : deleteRejectedStorageObject() [retentionNotRequired]
+Rejected --> Archived : archiveRejectedResource() [auditRetentionRequired]
+
+state Cancelled {
+  entry / stopBackgroundJobs()
+  entry / deleteTemporaryOrPartialData()
+  do / preserveCancellationHistory()
+}
+Cancelled --> Archived : archiveCancelledResource() [auditRetentionRequired]
+Cancelled --> [*] : closeWithoutRetention() [noPersistentRecord]
+
+state Expired {
+  entry / cleanTemporaryData()
+  entry / preserveExpiryHistoryIfRequired()
+}
+Expired --> [*] : closeExpiredSelection()
+
+state Deleted {
+  entry / deleteStorageObject()
+  entry / removeSearchAndVisibilityIndexes()
+  entry / preserveDeletionAudit()
+}
+Deleted --> [*] : lifecycleTerminated()
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+Archived --> [*] : lifecycleComplete()
+
+note right of ValidationPending
+File type, size, uploader role,
+course ownership, institute scope,
+and duplicate rules are validated.
+end note
+
+note right of SecurityScanning
+Files remain quarantined until malware,
+signature, and content-risk checks pass.
+end note
+
+note right of Published
+Published resources are versioned and
+visible only within authorized scope.
+end note
+
+note right of Deleted
+Deletion removes storage and indexes
+while preserving required audit evidence.
+end note
+@enduml

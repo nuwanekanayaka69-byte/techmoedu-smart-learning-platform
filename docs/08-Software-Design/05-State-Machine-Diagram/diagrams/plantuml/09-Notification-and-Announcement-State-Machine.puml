@@ -1,0 +1,196 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n09 - Notification and Announcement State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+
+[*] --> Draft : createAnnouncement() / initializeAnnouncementRecord()
+
+state Draft {
+  entry / assignAnnouncementId()
+  do / captureContentAndAudience()
+}
+Draft --> PendingReview : submitForReview() [requiredFieldsComplete]
+Draft --> Cancelled : cancelDraft() [authorizedCancellation]
+Draft --> Expired : expireDraft() [draftRetentionExceeded]
+
+state PendingReview {
+  entry / assignReviewer()
+  do / validateContentAudienceAndChannels()
+}
+PendingReview --> ChangesRequired : requestChanges() [reviewIssuesFound]
+PendingReview --> Approved : approveAnnouncement() [reviewPassed && publisherAuthorized]
+PendingReview --> Rejected : rejectAnnouncement() [criticalIssueFound]
+
+state ChangesRequired {
+  entry / notifyAuthor()
+  do / awaitRevision()
+}
+ChangesRequired --> Draft : reviseAnnouncement() [revisionWindowOpen]
+ChangesRequired --> Rejected : revisionDeadlinePassed()
+
+state Approved {
+  entry / recordApproval()
+  do / awaitPublishDecision()
+}
+Approved --> Scheduled : schedulePublication() [futurePublishTime]
+Approved --> Publishing : publishNow() [immediatePublicationAuthorized]
+Approved --> Suspended : suspendBeforePublication() [policyOrSecurityIssue]
+
+state Scheduled {
+  entry / recordScheduledTime()
+  do / awaitScheduledPublication()
+}
+Scheduled --> Publishing : publishAtScheduledTime() [publishTimeReached]
+Scheduled --> Approved : reschedulePublication() [authorizedChange]
+Scheduled --> Cancelled : cancelScheduledAnnouncement() [administratorApproved]
+Scheduled --> Suspended : suspendScheduledPublication() [integrityConcern]
+
+state Publishing {
+  entry / recordPublishingStarted()
+  do / persistPublishedVersion()
+  do / createDeliveryJobs()
+}
+Publishing --> Published : publicationSucceeded() [contentStored && audienceResolved]
+Publishing --> PublicationFailed : publicationFailed()
+
+state PublicationFailed {
+  entry / notifyPublisher()
+  do / retryPublication()
+}
+PublicationFailed --> Publishing : retryPublication() [retryAllowed]
+PublicationFailed --> AdministratorReview : retryLimitReached()
+PublicationFailed --> Cancelled : abandonPublication() [administratorApproved]
+
+state Published {
+  entry / setPublishedAt()
+  entry / preservePublishedVersion()
+  do / allowAuthorizedVisibility()
+}
+Published --> DeliveryPending : initiateDelivery() [deliveryChannelsConfigured]
+Published --> Delivered : markInAppPublished() [inAppOnly]
+Published --> Withdrawn : withdrawAnnouncement() [authorizedReason]
+Published --> Expired : publicationExpired() [expiryTimeReached]
+Published --> CorrectionRequested : requestCorrection() [authorizedReason]
+
+state DeliveryPending {
+  entry / createDeliveryBatch()
+  do / dispatchEmailSmsPushAndInApp()
+  do / monitorChannelResponses()
+}
+DeliveryPending --> Delivered : deliveryCompleted() [requiredChannelsSucceeded]
+DeliveryPending --> PartiallyDelivered : partialDelivery() [someChannelsFailed]
+DeliveryPending --> DeliveryFailed : deliveryFailed() [allRequiredChannelsFailed]
+
+state PartiallyDelivered {
+  entry / recordPartialDelivery()
+  do / identifyFailedRecipientsAndChannels()
+}
+PartiallyDelivered --> RetryPending : retryFailedDeliveries() [retryPolicyAllows]
+PartiallyDelivered --> Delivered : acceptPartialDelivery() [minimumDeliveryThresholdMet]
+PartiallyDelivered --> AdministratorReview : deliveryThresholdNotMet()
+
+state DeliveryFailed {
+  entry / notifyCommunicationAdministrator()
+  do / classifyDeliveryFailure()
+}
+DeliveryFailed --> RetryPending : scheduleRetry() [retryPolicyAllows]
+DeliveryFailed --> AdministratorReview : retryNotAllowed()
+DeliveryFailed --> Cancelled : cancelUndeliveredAnnouncement() [administratorApproved]
+
+state RetryPending {
+  entry / recordRetryCount()
+  do / awaitRetryWindow()
+}
+RetryPending --> DeliveryPending : retryDelivery() [retryWindowReached && retryLimitNotExceeded]
+RetryPending --> AdministratorReview : retryLimitExceeded()
+RetryPending --> Cancelled : cancelRetry() [administratorApproved]
+
+state Delivered {
+  entry / setDeliveredAt()
+  entry / updateChannelMetrics()
+  do / collectReadReceipts()
+}
+Delivered --> ReadTracking : enableReadTracking() [readReceiptsEnabled]
+Delivered --> Archived : archiveAnnouncement() [retentionRulesSatisfied]
+Delivered --> CorrectionRequested : requestCorrection() [authorizedReason]
+
+state ReadTracking {
+  do / recordReadReceipts()
+  do / calculateReadRate()
+}
+ReadTracking --> Read : allRequiredRecipientsRead() [requiredReadThresholdMet]
+ReadTracking --> Delivered : trackingWindowClosed()
+ReadTracking --> AdministratorReview : abnormalReadMetricsDetected()
+
+state Read {
+  entry / setReadCompletionAt()
+  do / preserveReadMetrics()
+}
+Read --> Archived : archiveAnnouncement() [retentionRulesSatisfied]
+Read --> CorrectionRequested : requestCorrection() [authorizedReason]
+
+state CorrectionRequested {
+  entry / notifyAuthorizedReviewer()
+  do / validateCorrectionReason()
+}
+CorrectionRequested --> Corrected : approveCorrection() [administratorApproved]
+CorrectionRequested --> Published : rejectCorrection() [administratorRejected]
+
+state Corrected {
+  entry / preservePreviousVersion()
+  entry / recordCorrectionReason()
+  do / awaitRepublishing()
+}
+Corrected --> Approved : resubmitCorrectedAnnouncement() [correctionComplete]
+Corrected --> Rejected : correctionInvalidated()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewPublicationAndDeliveryEvidence()
+}
+AdministratorReview --> Publishing : reviewAllowsRepublish()
+AdministratorReview --> RetryPending : reviewAllowsRetry()
+AdministratorReview --> Corrected : reviewRequiresCorrection()
+AdministratorReview --> Cancelled : reviewRequiresCancellation()
+AdministratorReview --> Rejected : reviewRejectsAnnouncement()
+
+state Suspended {
+  entry / blockVisibilityAndDelivery()
+  do / awaitRemediation()
+}
+Suspended --> Approved : resumeBeforePublication() [issuesResolved && administratorApproved]
+Suspended --> Published : restorePublishedAnnouncement() [issuesResolved && publicationStillValid]
+Suspended --> Cancelled : cancelSuspendedAnnouncement() [remediationFailed]
+
+state Withdrawn {
+  entry / hideAnnouncement()
+  do / preserveWithdrawalHistory()
+}
+Withdrawn --> Archived : archiveWithdrawnAnnouncement() [retentionRulesSatisfied]
+Withdrawn --> Corrected : republishAsCorrection() [administratorApproved]
+
+state Rejected {
+  entry / preserveReviewHistory()
+}
+Rejected --> [*] : closeAnnouncementRequest()
+
+state Cancelled {
+  entry / stopPublicationAndDeliveryJobs()
+  do / preserveCancellationHistory()
+}
+Cancelled --> Archived : archiveCancelledAnnouncement() [closureComplete]
+
+state Expired {
+  entry / hideAnnouncement()
+  do / preserveExpiryHistory()
+}
+Expired --> Archived : archiveExpiredAnnouncement() [closureComplete]
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+Archived --> [*] : lifecycleComplete()
+@enduml
