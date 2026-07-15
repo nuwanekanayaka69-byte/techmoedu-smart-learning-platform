@@ -1,0 +1,185 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n07 - Marks and Results State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+
+[*] --> NotEntered : initializeResultRecord() / createResultShell()
+
+state NotEntered {
+  entry / assignResultId()
+  do / awaitMarksEntry()
+}
+NotEntered --> Draft : startMarksEntry() [examCompleted && teacherAuthorized]
+NotEntered --> Cancelled : cancelResultRecord() [authorizedCancellation]
+
+state Draft {
+  entry / recordDraftCreatedAt()
+  do / enterMarks()
+  do / calculateProvisionalGrade()
+}
+Draft --> ValidationPending : submitForValidation() [requiredMarksEntered]
+Draft --> Draft : saveDraft() / persistPartialMarks()
+Draft --> Cancelled : cancelMarksEntry() [administratorApproved]
+
+state ValidationPending {
+  do / validateMarkRange()
+  do / validateAssessmentWeights()
+  do / verifyStudentAndExamScope()
+  do / calculateTotalsAndGrades()
+}
+ValidationPending --> ValidationFailed : validationFailed() [correctableErrors]
+ValidationPending --> IntegrityReview : integrityConcernDetected()
+ValidationPending --> Submitted : validationPassed() [marksValid && weightsValid && scopeValid]
+
+state ValidationFailed {
+  entry / notifyTeacherOfErrors()
+  do / awaitCorrection()
+}
+ValidationFailed --> Draft : correctMarks() [correctionWindowOpen]
+ValidationFailed --> Rejected : correctionDeadlinePassed()
+
+state IntegrityReview {
+  entry / freezeResult()
+  do / reviewMarkingEvidence()
+}
+IntegrityReview --> ValidationPending : integrityCleared()
+IntegrityReview --> Rejected : integrityViolationConfirmed()
+IntegrityReview --> AdministratorReview : furtherInvestigationRequired()
+
+state Submitted {
+  entry / recordSubmittedAt()
+  do / awaitReview()
+}
+Submitted --> UnderReview : beginReview() / assignReviewer()
+
+state UnderReview {
+  entry / assignReviewer()
+  do / compareMarkingScheme()
+  do / reviewGradeDistribution()
+  do / verifyCalculationIntegrity()
+}
+UnderReview --> ChangesRequired : requestChanges() [reviewIssuesFound]
+UnderReview --> Approved : approveResults() [reviewPassed && allChecksComplete]
+UnderReview --> Rejected : rejectResults() [criticalIssueFound]
+UnderReview --> AdministratorReview : escalationRequired()
+
+state ChangesRequired {
+  entry / notifyTeacher()
+  do / awaitMarkCorrection()
+}
+ChangesRequired --> Draft : reviseMarks() [revisionAuthorized]
+ChangesRequired --> Rejected : revisionDeadlinePassed()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewEvidenceAndHistory()
+}
+AdministratorReview --> UnderReview : reviewCleared()
+AdministratorReview --> Draft : correctionRequired()
+AdministratorReview --> Rejected : reviewRejected()
+
+state Approved {
+  entry / recordApproval()
+  entry / calculateFinalGrade()
+  do / awaitPublication()
+}
+Approved --> PublicationPending : requestPublication() [publicationAuthorized]
+Approved --> Suspended : suspendBeforePublication() [integrityOrPolicyIssue]
+
+state PublicationPending {
+  entry / validatePublicationScope()
+  do / awaitScheduledOrImmediateRelease()
+}
+PublicationPending --> Published : publishResults() [releaseTimeReached && accessScopeValid]
+PublicationPending --> Scheduled : schedulePublication() [futureReleaseTime]
+PublicationPending --> PublicationFailed : publicationError()
+
+state Scheduled {
+  entry / recordScheduledRelease()
+  do / awaitReleaseTime()
+}
+Scheduled --> Published : releaseResults() [releaseTimeReached]
+Scheduled --> PublicationPending : reschedulePublication() [authorizedChange]
+Scheduled --> Suspended : suspendScheduledPublication() [integrityConcern]
+
+state PublicationFailed {
+  entry / logPublicationFailure()
+  do / retryPublication()
+}
+PublicationFailed --> PublicationPending : retrySucceeded()
+PublicationFailed --> AdministratorReview : retryLimitReached()
+
+state Published {
+  entry / setPublishedAt()
+  entry / notifyStudentAndParent()
+  entry / preservePublishedVersion()
+  do / allowAuthorizedResultAccess()
+}
+Published --> AppealPending : submitAppeal() [appealWindowOpen]
+Published --> CorrectionRequested : requestCorrection() [authorizedReason]
+Published --> Locked : closeAppealWindow() [appealWindowClosed]
+
+state AppealPending {
+  entry / notifyInstituteAdministrator()
+  do / reviewAppeal()
+}
+AppealPending --> ReassessmentRequired : appealApproved()
+AppealPending --> Published : appealRejected()
+AppealPending --> AdministratorReview : complexAppeal()
+
+state ReassessmentRequired {
+  entry / assignReassessmentReviewer()
+  do / reassessMarksAndEvidence()
+}
+ReassessmentRequired --> Corrected : reassessmentChangesResult()
+ReassessmentRequired --> Published : reassessmentConfirmsResult()
+
+state CorrectionRequested {
+  entry / notifyAuthorizedReviewer()
+  do / validateCorrectionReason()
+}
+CorrectionRequested --> Corrected : approveCorrection() [administratorApproved]
+CorrectionRequested --> Published : rejectCorrection() [administratorRejected]
+
+state Corrected {
+  entry / recordCorrectionReason()
+  entry / preservePreviousVersion()
+  entry / recalculateFinalGrade()
+  do / awaitRepublishing()
+}
+Corrected --> PublicationPending : republishCorrectedResult() [correctionApproved]
+Corrected --> Rejected : correctionInvalidated()
+
+state Suspended {
+  entry / blockResultAccess()
+  do / awaitRemediation()
+}
+Suspended --> PublicationPending : resumePublication() [issuesResolved && administratorApproved]
+Suspended --> Rejected : invalidateResults() [criticalIntegrityFailure]
+
+state Locked {
+  entry / revokeEditAccess()
+  entry / preserveImmutableHistory()
+  do / allowReadOnlyAccess()
+}
+Locked --> Archived : archiveResults() [reportsFinalized && retentionRulesSatisfied]
+Locked --> CorrectionRequested : postLockCorrectionRequest() [legalOrAdministrativeReason]
+
+state Rejected {
+  entry / preserveRejectedHistory()
+}
+Rejected --> Archived : archiveRejectedResults() [reviewClosed]
+
+state Cancelled {
+  entry / recordCancellationReason()
+}
+Cancelled --> Archived : archiveCancelledResult() [closureComplete]
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+Archived --> [*] : lifecycleComplete()
+@enduml

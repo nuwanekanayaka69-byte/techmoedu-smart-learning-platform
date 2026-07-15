@@ -1,0 +1,201 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n08 - Fee Payment State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> InvoiceCreated : createInvoice() / initializePaymentRecord()
+
+state InvoiceCreated {
+  entry / assignInvoiceId()
+  entry / calculateAmountDue()
+  do / awaitPaymentInitiation()
+}
+
+InvoiceCreated --> PaymentPending : initiatePayment() [invoiceValid && amountDuePositive] / createPaymentReference()
+InvoiceCreated --> Cancelled : cancelInvoice() [administratorApproved] / preserveCancellationHistory()
+InvoiceCreated --> Expired : invoiceExpired() [dueDatePassed && noPaymentStarted] / markInvoiceExpired()
+
+state PaymentPending {
+  entry / recordPaymentReference()
+  do / awaitGatewayOrManualPayment()
+  exit / recordPaymentAttempt()
+}
+
+PaymentPending --> Processing : submitPayment() [paymentMethodValid] / createPendingTransaction()
+PaymentPending --> Expired : paymentWindowExpired() / invalidatePaymentReference()
+PaymentPending --> Cancelled : cancelBeforeProcessing() [cancellationAllowed] / releasePendingResources()
+
+state Processing {
+  entry / recordProcessingStart()
+  do / verifyGatewayResponse()
+  do / validateAmountCurrencyAndPayer()
+  do / preventDuplicateTransaction()
+}
+
+Processing --> Authorized : paymentAuthorized() [gatewayApproved && amountValid && payerValid] / reserveFunds()
+Processing --> Failed : paymentRejected() / recordFailureReason()
+Processing --> ReconciliationRequired : ambiguousGatewayResponse() / openReconciliationCase()
+Processing --> DuplicateDetected : duplicateTransactionDetected() / blockDuplicatePosting()
+
+state DuplicateDetected {
+  entry / freezeDuplicateTransaction()
+  do / compareTransactionReferences()
+}
+DuplicateDetected --> Processing : duplicateResolvedAsUnique() / resumeProcessing()
+DuplicateDetected --> Failed : duplicateConfirmed() / rejectDuplicatePayment()
+DuplicateDetected --> AdministratorReview : manualDecisionRequired() / openReviewCase()
+
+state Authorized {
+  entry / recordAuthorizationCode()
+  do / awaitCaptureOrSettlement()
+}
+
+Authorized --> Completed : capturePayment() [captureSuccessful] / postPaymentAndUpdateInvoice()
+Authorized --> Failed : captureFailed() / releaseAuthorization()
+Authorized --> ReconciliationRequired : settlementMismatchDetected() / openReconciliationCase()
+
+state Completed {
+  entry / setPaidAt()
+  entry / updateInvoiceBalance()
+  entry / generateReceipt()
+  entry / notifyStudentAndParent()
+  do / preserveCompletedTransaction()
+}
+
+Completed --> Refunding : requestRefund() [refundAuthorized && refundableAmountPositive] / createRefundRequest()
+Completed --> ChargebackPending : chargebackReceived() / freezeDisputedAmount()
+Completed --> ReconciliationRequired : accountingMismatchDetected() / openReconciliationCase()
+Completed --> Archived : archivePayment() [settlementFinal && retentionRulesSatisfied] / preserveAuditHistory()
+
+state Failed {
+  entry / notifyPaymentFailure()
+  entry / preserveFailureAudit()
+  do / awaitRetryOrClosure()
+}
+
+Failed --> PaymentPending : retryPayment() [retryAllowed && invoiceStillOpen] / issueNewPaymentReference()
+Failed --> Cancelled : retryLimitReached() / closePaymentAttempt()
+Failed --> AdministratorReview : disputedFailure() / openReviewCase()
+
+state ReconciliationRequired {
+  entry / freezeFinancialPosting()
+  entry / notifyFinanceAdministrator()
+  do / compareGatewayBankAndLedger()
+}
+
+ReconciliationRequired --> Completed : reconciliationConfirmedPaid() / postPaymentAndUpdateInvoice()
+ReconciliationRequired --> Failed : reconciliationConfirmedUnpaid() / markPaymentFailed()
+ReconciliationRequired --> AdministratorReview : unresolvedMismatch() / escalateCase()
+
+state AdministratorReview {
+  entry / assignFinanceReviewer()
+  do / reviewPaymentEvidence()
+  exit / recordReviewOutcome()
+}
+
+AdministratorReview --> PaymentPending : reviewAllowsRetry() / issueNewPaymentReference()
+AdministratorReview --> Completed : reviewConfirmsPayment() / postManualPayment()
+AdministratorReview --> Failed : reviewRejectsPayment() / preserveDecisionHistory()
+AdministratorReview --> Refunding : reviewApprovesRefund() / createRefundRequest()
+
+state Refunding {
+  entry / recordRefundRequest()
+  do / validateRefundPolicy()
+  do / processGatewayRefund()
+}
+
+Refunding --> Refunded : refundCompleted() [gatewayConfirmed] / updateInvoiceAndLedger()
+Refunding --> RefundFailed : refundFailed() / recordRefundFailure()
+Refunding --> AdministratorReview : refundRequiresManualApproval()
+
+state RefundFailed {
+  entry / notifyFinanceAdministrator()
+  do / retryRefundOrInvestigate()
+}
+
+RefundFailed --> Refunding : retryRefund() [retryAllowed]
+RefundFailed --> AdministratorReview : retryLimitReached()
+RefundFailed --> ChargebackPending : externalDisputeOpened()
+
+state Refunded {
+  entry / setRefundedAt()
+  entry / updateRefundedAmount()
+  entry / generateRefundReceipt()
+  entry / notifyStudentAndParent()
+  do / preserveRefundHistory()
+}
+
+Refunded --> Archived : archiveRefundedPayment() [refundSettlementFinal && retentionRulesSatisfied] / preserveAuditHistory()
+Refunded --> ChargebackPending : postRefundDisputeReceived()
+
+state ChargebackPending {
+  entry / freezeDisputedAmount()
+  entry / notifyFinanceAdministrator()
+  do / collectChargebackEvidence()
+}
+
+ChargebackPending --> ChargebackResolved : resolveChargeback() [bankDecisionReceived] / updateLedger()
+ChargebackPending --> AdministratorReview : complexDispute() / escalateCase()
+
+state ChargebackResolved {
+  entry / recordBankDecision()
+  entry / updateInvoiceAndLedger()
+  do / preserveDisputeHistory()
+}
+
+ChargebackResolved --> Archived : archiveChargebackCase() [financialClosureComplete && retentionRulesSatisfied]
+
+state Cancelled {
+  entry / recordCancellationReason()
+  entry / invalidatePaymentReference()
+  do / preserveCancellationHistory()
+}
+
+Cancelled --> Archived : archiveCancelledPayment() [closureComplete]
+
+state Expired {
+  entry / invalidatePaymentReference()
+  entry / notifyPaymentExpiry()
+  do / preserveExpiryHistory()
+}
+
+Expired --> PaymentPending : restartPayment() [invoiceStillOpen] / issueNewPaymentReference()
+Expired --> Archived : archiveExpiredPayment() [invoiceClosed || closureComplete]
+
+state Archived {
+  entry / disableAllMutations()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyFinancialAccess()
+}
+
+Archived --> [*] : lifecycleComplete()
+
+note right of Processing
+Amount, currency, payer, invoice,
+gateway response, and duplicate status
+must be validated before authorization.
+end note
+
+note right of Completed
+Completion updates invoice, ledger,
+receipt, and notifications atomically.
+end note
+
+note right of ReconciliationRequired
+No financial posting is finalized until
+gateway, bank, and ledger agree.
+end note
+
+note right of Archived
+Archived payments are immutable and
+retained according to finance policy.
+end note
+@enduml
