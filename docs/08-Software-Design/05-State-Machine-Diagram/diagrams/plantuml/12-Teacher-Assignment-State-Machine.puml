@@ -1,0 +1,208 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n12 - Teacher Assignment State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> AssignmentRequested : createAssignmentRequest() / initializeAssignmentRecord()
+
+state AssignmentRequested {
+  entry / assignRequestId()
+  entry / recordTeacherCourseAndInstitute()
+  do / validateBasicRequestData()
+}
+
+AssignmentRequested --> EligibilityValidation : beginValidation() [requestComplete] / lockRequestData()
+AssignmentRequested --> Cancelled : cancelRequest() [authorizedCancellation] / preserveRequestHistory()
+AssignmentRequested --> Rejected : rejectInvalidRequest() [invalidScopeOrDuplicate] / recordRejectionReason()
+
+state EligibilityValidation {
+  entry / loadAssignmentPolicy()
+  do / validateTeacherStatus()
+  do / validateTeacherQualifications()
+  do / validateInstituteMembership()
+  do / validateCourseRequirement()
+  do / validateMultiInstituteLimit()
+  exit / recordEligibilityOutcome()
+}
+
+EligibilityValidation --> EligibilityFailed : eligibilityFailed() [correctableIssue] / publishEligibilityErrors()
+EligibilityValidation --> ConflictValidation : eligibilityPassed() [teacherActive && qualified && instituteValid] / beginConflictCheck()
+EligibilityValidation --> AdministratorReview : policyExceptionDetected() / openReviewCase()
+
+state EligibilityFailed {
+  entry / notifyRequester()
+  do / awaitCorrectionOrReplacement()
+}
+EligibilityFailed --> AssignmentRequested : correctRequest() [correctionWindowOpen] / unlockRequestData()
+EligibilityFailed --> Rejected : correctionDeadlinePassed() / closeAssignmentRequest()
+
+state ConflictValidation {
+  entry / loadTeacherSchedule()
+  do / checkTimetableConflict()
+  do / checkWorkloadLimit()
+  do / checkDuplicateAssignment()
+  do / checkCrossInstituteRules()
+}
+
+ConflictValidation --> ConflictDetected : conflictFound() / recordConflictDetails()
+ConflictValidation --> ApprovalPending : noConflictFound() [workloadWithinLimit && assignmentUnique] / createApprovalRequest()
+
+state ConflictDetected {
+  entry / notifyRequesterAndTeacher()
+  do / awaitConflictResolution()
+}
+ConflictDetected --> ConflictValidation : resolveConflict() [resolutionAccepted] / rerunConflictCheck()
+ConflictDetected --> AdministratorReview : requestOverride() [overrideAllowed] / openReviewCase()
+ConflictDetected --> Rejected : conflictUnresolved() [deadlinePassed] / closeAssignmentRequest()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewEligibilityWorkloadAndConflictEvidence()
+  exit / recordReviewOutcome()
+}
+AdministratorReview --> EligibilityValidation : revalidateEligibility()
+AdministratorReview --> ConflictValidation : revalidateConflict()
+AdministratorReview --> ApprovalPending : overrideApproved() [authorizedOverride] / createApprovalRequest()
+AdministratorReview --> Rejected : reviewRejected() / preserveDecisionHistory()
+AdministratorReview --> Suspended : suspendExistingAssignment() [activeAssignmentFound && riskConfirmed]
+
+state ApprovalPending {
+  entry / notifyInstituteAdministrator()
+  do / awaitAdministrativeDecision()
+}
+
+ApprovalPending --> Approved : approveAssignment() [administratorApproved] / freezeApprovedAssignment()
+ApprovalPending --> Rejected : rejectAssignment() [administratorRejected] / preserveDecisionHistory()
+ApprovalPending --> AdministratorReview : additionalReviewRequired()
+
+state Approved {
+  entry / recordApproval()
+  entry / createAssignmentVersion()
+  do / awaitActivation()
+}
+
+Approved --> Active : activateAssignment() [courseActive && scheduleReady] / grantTeacherCourseAccess()
+Approved --> Scheduled : scheduleFutureActivation() [futureStartDate] / createActivationJob()
+Approved --> Suspended : suspendBeforeActivation() [policyOrSecurityIssue] / blockActivation()
+
+state Scheduled {
+  entry / recordScheduledStart()
+  do / awaitActivationDate()
+}
+Scheduled --> Active : activateAtStartDate() [startDateReached && courseActive] / grantTeacherCourseAccess()
+Scheduled --> Approved : rescheduleActivation() [authorizedChange]
+Scheduled --> Cancelled : cancelScheduledAssignment() [administratorApproved]
+Scheduled --> Suspended : suspendScheduledAssignment() [integrityConcern]
+
+state Active {
+  entry / grantTeacherCourseAccess()
+  entry / enableAttendanceMarksResourceAndAnnouncementPermissions()
+  entry / recordActivatedAt()
+  do / monitorWorkloadScheduleAndCompliance()
+}
+
+Active --> Updated : updateAssignment() [updateAuthorized] / createAssignmentVersion()
+Active --> Suspended : suspendAssignment() [policyViolation || instituteIssue] / revokeTeacherCourseAccess()
+Active --> TransferPending : transferAssignment() [authorizedTransfer] / createTransferRequest()
+Active --> EndPending : requestAssignmentEnd() [authorizedReason] / createEndRequest()
+Active --> Archived : archiveAssignment() [courseClosed && retentionRulesSatisfied] / revokeAccessAndPreserveHistory()
+
+state Updated {
+  entry / preservePreviousVersion()
+  do / updateRoleScheduleOrPermissions()
+}
+Updated --> ApprovalPending : submitSensitiveUpdate() [approvalRequired] / createApprovalRequest()
+Updated --> ConflictValidation : submitScheduleUpdate() [scheduleChanged] / rerunConflictCheck()
+Updated --> Active : applyNonSensitiveUpdate() [validationPassed] / activateUpdatedVersion()
+Updated --> Rejected : rejectUpdate() / preserveCurrentActiveVersion()
+
+state Suspended {
+  entry / revokeTeacherCourseAccess()
+  entry / notifyTeacherAndAdministrators()
+  entry / preserveAssignmentHistory()
+  do / awaitRemediation()
+}
+Suspended --> Active : reactivateAssignment() [issuesResolved && administratorApproved] / restoreTeacherCourseAccess()
+Suspended --> EndPending : requestPermanentEnd() [authorizedReason] / createEndRequest()
+Suspended --> Archived : archiveSuspendedAssignment() [assignmentNoLongerValid && retentionRulesSatisfied]
+
+state TransferPending {
+  entry / notifySourceAndTargetInstitutes()
+  do / validateTargetInstituteAndCourse()
+  do / validateTransferSchedule()
+  do / awaitTransferApproval()
+}
+TransferPending --> Active : rejectTransfer() [transferRejected] / preserveCurrentAssignment()
+TransferPending --> Approved : approveTransfer() [transferApproved] / createTransferredAssignmentVersion()
+TransferPending --> AdministratorReview : transferConflictDetected()
+
+state EndPending {
+  entry / notifyTeacherAndInstitute()
+  do / validateEndReason()
+  do / awaitEndApproval()
+}
+EndPending --> Ended : approveEnd() [administratorApproved] / revokeTeacherCourseAccess()
+EndPending --> Active : rejectEnd() [administratorRejected] / preserveActiveAssignment()
+EndPending --> AdministratorReview : contestedEnd()
+
+state Ended {
+  entry / recordEndedAt()
+  entry / revokeTeacherCourseAccess()
+  entry / preserveAssignmentAudit()
+  do / allowReadOnlyAdministrativeReview()
+}
+Ended --> Approved : reassignTeacher() [newApprovalGranted && policySatisfied] / createNewAssignmentVersion()
+Ended --> Archived : archiveEndedAssignment() [retentionRulesSatisfied]
+
+state Rejected {
+  entry / notifyRequesterAndTeacher()
+  entry / preserveReviewHistory()
+}
+Rejected --> Archived : archiveRejectedAssignment() [auditRetentionRequired]
+Rejected --> [*] : closeWithoutRetention() [noPersistentAssignment]
+
+state Cancelled {
+  entry / stopActivationJobs()
+  entry / recordCancellationReason()
+  do / preserveCancellationHistory()
+}
+Cancelled --> Archived : archiveCancelledAssignment() [auditRetentionRequired]
+Cancelled --> [*] : closeWithoutRetention() [noPersistentAssignment]
+
+state Archived {
+  entry / disableAllMutations()
+  entry / revokeTeacherCourseAccess()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+Archived --> [*] : lifecycleComplete()
+
+note right of EligibilityValidation
+Teacher status, qualifications,
+institute membership, course need,
+and multi-institute policy are validated.
+end note
+
+note right of ConflictValidation
+Timetable, workload, duplicate assignment,
+and cross-institute conflicts are checked.
+end note
+
+note right of Active
+Active assignment grants only the
+permissions required for the course.
+end note
+
+note right of Archived
+Archived assignments are immutable
+and retained according to policy.
+end note
+@enduml

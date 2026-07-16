@@ -1,0 +1,228 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n11 - Parent Student Relationship State Machine
+hide empty description
+skinparam shadowing false
+skinparam dpi 220
+skinparam state {
+  BackgroundColor White
+  BorderColor #374151
+  ArrowColor #374151
+  FontName Arial
+  FontSize 12
+}
+
+[*] --> InvitationCreated : createLinkRequest() / initializeRelationshipRequest()
+
+state InvitationCreated {
+  entry / assignRelationshipRequestId()
+  entry / recordParentAndStudentReferences()
+  do / validateBasicRequestData()
+}
+
+InvitationCreated --> InvitationSent : sendInvitation() [requestValid && inviterAuthorized] / generateInvitationToken()
+InvitationCreated --> Cancelled : cancelBeforeSend() [authorizedCancellation] / preserveDraftHistory()
+InvitationCreated --> Rejected : rejectInvalidRequest() [invalidScopeOrDuplicate] / recordRejectionReason()
+
+state InvitationSent {
+  entry / sendEmailSmsAndInAppInvitation()
+  entry / recordSentAt()
+  do / monitorDeliveryAndExpiry()
+}
+
+InvitationSent --> PendingAcceptance : invitationDelivered() [deliveryConfirmed] / enableAcceptanceFlow()
+InvitationSent --> DeliveryFailed : deliveryFailed() / recordDeliveryFailure()
+InvitationSent --> Expired : invitationExpired() [tokenExpired] / invalidateInvitationToken()
+InvitationSent --> Cancelled : revokeInvitation() [administratorApproved] / invalidateInvitationToken()
+
+state DeliveryFailed {
+  entry / notifyInviter()
+  do / classifyDeliveryFailure()
+}
+
+DeliveryFailed --> InvitationSent : resendInvitation() [retryAllowed] / issueNewInvitationToken()
+DeliveryFailed --> AdministratorReview : retryLimitReached() / openReviewCase()
+DeliveryFailed --> Cancelled : abandonInvitation() [administratorApproved]
+
+state PendingAcceptance {
+  entry / exposeInvitationDetails()
+  do / awaitParentResponse()
+}
+
+PendingAcceptance --> IdentityVerification : acceptInvitation() [invitationValid] / lockAcceptanceData()
+PendingAcceptance --> InvitationRejected : rejectInvitation() / recordParentRejection()
+PendingAcceptance --> Expired : acceptanceWindowClosed() / invalidateInvitationToken()
+PendingAcceptance --> Cancelled : revokePendingInvitation() [administratorApproved]
+
+state IdentityVerification {
+  entry / generateOtpChallenge()
+  do / verifyParentAccount()
+  do / verifyStudentIdentity()
+  do / verifyGuardianEvidence()
+  do / verifyInstituteScope()
+}
+
+IdentityVerification --> VerificationFailed : verificationFailed() [correctableVerificationError] / recordVerificationFailure()
+IdentityVerification --> ApprovalPending : verificationPassed() [otpVerified && guardianConfirmed && instituteMatched] / createApprovalRequest()
+IdentityVerification --> SecurityReview : suspiciousVerificationActivity() / freezeVerification()
+
+state VerificationFailed {
+  entry / notifyVerificationFailure()
+  do / awaitRetryOrCorrection()
+}
+
+VerificationFailed --> IdentityVerification : retryVerification() [retryAllowed] / issueNewOtpChallenge()
+VerificationFailed --> AdministratorReview : retryLimitReached() / escalateVerificationCase()
+VerificationFailed --> Rejected : correctionDeadlinePassed() / closeRelationshipRequest()
+
+state SecurityReview {
+  entry / freezeRelationshipRequest()
+  entry / notifySecurityAdministrator()
+  do / reviewIdentityAndAccessEvidence()
+}
+
+SecurityReview --> IdentityVerification : securityCleared() / resumeVerification()
+SecurityReview --> Rejected : fraudConfirmed() / permanentlyRejectRequest()
+SecurityReview --> AdministratorReview : furtherInvestigationRequired()
+
+state ApprovalPending {
+  entry / notifyInstituteAdministrator()
+  do / validateRelationshipPolicy()
+  do / validateMaximumChildrenAndParents()
+  do / awaitAdministrativeDecision()
+}
+
+ApprovalPending --> Linked : approveRelationship() [administratorApproved && policySatisfied] / createParentStudentLink()
+ApprovalPending --> Rejected : rejectRelationship() [administratorRejected] / preserveDecisionHistory()
+ApprovalPending --> AdministratorReview : policyExceptionDetected() / openReviewCase()
+
+state AdministratorReview {
+  entry / assignReviewOfficer()
+  do / reviewIdentityPolicyAndEvidence()
+  exit / recordReviewOutcome()
+}
+
+AdministratorReview --> ApprovalPending : reviewCleared() [issuesResolved] / resumeApproval()
+AdministratorReview --> IdentityVerification : reverifyIdentity() / issueNewVerificationChallenge()
+AdministratorReview --> Linked : manualApprovalGranted() [authorizedOverride] / createParentStudentLink()
+AdministratorReview --> Rejected : reviewRejected() / preserveDecisionHistory()
+AdministratorReview --> Suspended : suspendExistingRelationship() [activeLinkFound && riskConfirmed]
+
+state Linked {
+  entry / recordLinkedAt()
+  entry / enableParentDashboardAccess()
+  entry / enableMarksAttendanceFeeAndNotificationAccess()
+  entry / createRelationshipAudit()
+  do / monitorRelationshipValidity()
+}
+
+Linked --> Updated : updateRelationship() [updateAuthorized] / createRelationshipVersion()
+Linked --> Suspended : suspendRelationship() [securityPolicyOrLegalIssue] / revokeParentAccess()
+Linked --> UnlinkRequested : requestUnlink() [authorizedReason] / createUnlinkRequest()
+Linked --> Archived : archiveRelationship() [studentInactive && retentionRulesSatisfied] / revokeAccessAndPreserveHistory()
+
+state Updated {
+  entry / preservePreviousVersion()
+  entry / updatePermissionsAndContactRules()
+  do / awaitValidation()
+}
+
+Updated --> ApprovalPending : submitSensitiveUpdate() [approvalRequired] / createApprovalRequest()
+Updated --> Linked : applyNonSensitiveUpdate() [validationPassed] / activateUpdatedVersion()
+Updated --> Rejected : updateRejected() / preserveCurrentActiveVersion()
+
+state Suspended {
+  entry / revokeParentDashboardAccess()
+  entry / notifyParentAndInstitute()
+  entry / preserveRelationshipHistory()
+  do / awaitRemediation()
+}
+
+Suspended --> Linked : reactivateRelationship() [issuesResolved && administratorApproved] / restoreParentAccess()
+Suspended --> UnlinkRequested : requestPermanentUnlink() [authorizedReason] / createUnlinkRequest()
+Suspended --> Archived : archiveSuspendedRelationship() [relationshipNoLongerValid && retentionRulesSatisfied]
+
+state UnlinkRequested {
+  entry / notifyParentStudentAndInstitute()
+  do / validateUnlinkReason()
+  do / awaitUnlinkApproval()
+}
+
+UnlinkRequested --> Unlinked : approveUnlink() [administratorApproved] / revokeRelationshipAccess()
+UnlinkRequested --> Linked : rejectUnlink() [administratorRejected] / preserveActiveRelationship()
+UnlinkRequested --> AdministratorReview : contestedUnlink() / openReviewCase()
+
+state Unlinked {
+  entry / revokeParentDashboardAccess()
+  entry / recordUnlinkedAt()
+  entry / preserveAuditAndVersionHistory()
+  do / allowReadOnlyAdministrativeReview()
+}
+
+Unlinked --> Linked : relinkRelationship() [newApprovalGranted && policySatisfied] / createNewRelationshipVersion()
+Unlinked --> Archived : archiveUnlinkedRelationship() [retentionRulesSatisfied]
+
+state InvitationRejected {
+  entry / recordParentRejection()
+  entry / notifyInviter()
+}
+
+InvitationRejected --> Archived : archiveRejectedInvitation() [auditRetentionRequired]
+InvitationRejected --> [*] : closeWithoutRetention() [noPersistentRelationship]
+
+state Rejected {
+  entry / notifyRequester()
+  entry / preserveReviewHistory()
+}
+
+Rejected --> Archived : archiveRejectedRequest() [auditRetentionRequired]
+Rejected --> [*] : closeWithoutRetention() [noPersistentRelationship]
+
+state Cancelled {
+  entry / invalidateInvitationToken()
+  entry / stopOutstandingNotifications()
+  do / preserveCancellationHistory()
+}
+
+Cancelled --> Archived : archiveCancelledRequest() [auditRetentionRequired]
+Cancelled --> [*] : closeWithoutRetention() [noPersistentRelationship]
+
+state Expired {
+  entry / invalidateInvitationToken()
+  entry / notifyInvitationExpiry()
+  do / preserveExpiryHistory()
+}
+
+Expired --> InvitationCreated : recreateInvitation() [requestStillValid] / createNewRequestVersion()
+Expired --> Archived : archiveExpiredRequest() [auditRetentionRequired]
+Expired --> [*] : closeWithoutRetention() [noPersistentRelationship]
+
+state Archived {
+  entry / disableAllMutations()
+  entry / revokeAllParentAccess()
+  entry / preserveAuditHistory()
+  do / allowReadOnlyAdministrativeAccess()
+}
+
+Archived --> [*] : lifecycleComplete()
+
+note right of IdentityVerification
+Parent identity, student identity,
+guardian evidence, OTP, and institute
+scope must be verified.
+end note
+
+note right of ApprovalPending
+Duplicate links and configured limits
+for children and guardians are enforced.
+end note
+
+note right of Linked
+Access is limited to authorized marks,
+attendance, fees, and notifications.
+end note
+
+note right of Archived
+Archived relationships are immutable
+and retained according to policy.
+end note
+@enduml
