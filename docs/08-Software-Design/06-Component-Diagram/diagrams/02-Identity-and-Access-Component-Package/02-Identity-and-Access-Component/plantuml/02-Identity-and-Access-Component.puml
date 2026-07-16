@@ -1,0 +1,116 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n02 - Identity and Access Component Diagram
+left to right direction
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam dpi 220
+actor "Super Administrator" as SuperAdmin
+actor "Institute Administrator" as InstituteAdmin
+actor Teacher
+actor Student
+actor Parent
+package "Presentation Layer" {
+  [Login UI] as LoginUI
+  [Registration UI] as RegistrationUI
+  [Password Recovery UI] as PasswordUI
+  [Protected Route Guard] as RouteGuard
+  [Role-based Dashboard Shell] as DashboardShell
+}
+package "Identity and Access Domain" {
+  [Authentication Component\nCMP-002] as Authentication
+  [Authorization Component\nCMP-003] as Authorization
+  [Session Management Component] as SessionManagement
+  [Account Lifecycle Component] as AccountLifecycle
+  [Identity Verification Component] as IdentityVerification
+  [Role and Permission Resolver] as RoleResolver
+  [Institute Scope Validator] as InstituteScope
+  [Ownership and Relationship Validator] as OwnershipValidator
+  [Security Policy Enforcement] as SecurityPolicy
+}
+package "User and Relationship Services" {
+  [User Management\nCMP-004] as UserManagement
+  [Institute Management\nCMP-005] as InstituteManagement
+  [Teacher Assignment\nCMP-010] as TeacherAssignment
+  [Parent-Student Relationship\nCMP-009] as ParentStudentRelationship
+}
+package "Repository and Adapter Layer" {
+  [Firebase Authentication Adapter\nCMP-024] as FirebaseAuthAdapter
+  [User Repository] as UserRepository
+  [Role Repository] as RoleRepository
+  [Session Repository] as SessionRepository
+  [Audit Adapter] as AuditAdapter
+}
+package "Firebase Infrastructure" {
+  cloud "Firebase Authentication" as FirebaseAuth
+  database "Cloud Firestore" as Firestore
+  cloud "Cloud Functions" as CloudFunctions
+}
+package "Cross-Cutting Governance" {
+  [Audit Logging\nCMP-022] as Audit
+  [Monitoring\nCMP-023] as Monitoring
+  [Notification Orchestration\nCMP-020] as Notification
+}
+SuperAdmin --> LoginUI
+InstituteAdmin --> LoginUI
+Teacher --> LoginUI
+Student --> LoginUI
+Parent --> LoginUI
+LoginUI --> Authentication : IAuthenticationService
+RegistrationUI --> Authentication : IRegistrationService
+PasswordUI --> Authentication : IPasswordRecoveryService
+RouteGuard --> Authorization : IAuthorizationService
+DashboardShell --> RoleResolver : IRoleResolutionService
+DashboardShell --> SessionManagement : ISessionService
+Authentication --> FirebaseAuthAdapter : IIdentityProvider
+Authentication --> UserManagement : IUserService
+Authentication --> SessionManagement : ISessionService
+Authentication --> IdentityVerification : IIdentityVerificationService
+Authentication --> AccountLifecycle : IAccountLifecycleService
+Authorization --> RoleResolver : IRoleResolutionService
+Authorization --> InstituteScope : IInstituteScopeValidator
+Authorization --> OwnershipValidator : IOwnershipValidator
+Authorization --> SecurityPolicy : ISecurityPolicy
+Authorization --> SessionManagement : ISessionService
+RoleResolver --> UserRepository
+RoleResolver --> RoleRepository
+InstituteScope --> InstituteManagement
+OwnershipValidator --> TeacherAssignment
+OwnershipValidator --> ParentStudentRelationship
+AccountLifecycle --> UserManagement
+IdentityVerification --> UserManagement
+SessionManagement --> SessionRepository
+UserManagement --> UserRepository
+FirebaseAuthAdapter --> FirebaseAuth
+UserRepository --> Firestore
+RoleRepository --> Firestore
+SessionRepository --> Firestore
+CloudFunctions --> Authentication
+CloudFunctions --> Authorization
+CloudFunctions --> AccountLifecycle
+CloudFunctions --> IdentityVerification
+Authentication --> AuditAdapter
+Authorization --> AuditAdapter
+AccountLifecycle --> AuditAdapter
+IdentityVerification --> AuditAdapter
+AuditAdapter --> Audit
+Authentication --> Monitoring
+Authorization --> Monitoring
+SessionManagement --> Monitoring
+AccountLifecycle --> Notification
+IdentityVerification --> Notification
+note right of Authorization
+  Access decision requires:
+  - Authenticated session
+  - Active account
+  - Valid role
+  - Institute scope
+  - Ownership/relationship
+  - Explicit permission
+end note
+note bottom of SecurityPolicy
+  Deny by default.
+  Least privilege.
+  No client-trusted roles.
+end note
+@enduml
