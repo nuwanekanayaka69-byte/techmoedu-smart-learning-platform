@@ -1,0 +1,184 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n04 - Operations and Communication Component Diagram
+left to right direction
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam dpi 220
+
+actor "Institute Administrator" as InstituteAdmin
+actor Teacher
+actor Student
+actor Parent
+
+package "Presentation Layer" {
+  [Operations Dashboard] as OperationsDashboard
+  [Teacher Communication Panel] as TeacherPanel
+  [Student Finance and Notice View] as StudentView
+  [Parent Finance and Notice View] as ParentView
+}
+
+package "Financial Operations" {
+  [Fee Management\nCMP-016] as FeeManagement
+  [Invoice Management] as InvoiceManagement
+  [Payment Management\nCMP-017] as PaymentManagement
+  [Receipt Generation] as ReceiptGeneration
+  [Refund and Reconciliation] as RefundReconciliation
+}
+
+package "Communication Services" {
+  [Announcement Management\nCMP-019] as AnnouncementManagement
+  [Notification Orchestration\nCMP-020] as NotificationManagement
+  [In-App Notification Service] as InAppNotification
+  [Email Adapter] as EmailAdapter
+  [SMS Adapter] as SMSAdapter
+  [Push Notification Adapter] as PushAdapter
+  [Delivery and Read Tracking] as DeliveryTracking
+}
+
+package "Reporting and Governance" {
+  [Reporting and Analytics\nCMP-021] as Reporting
+  [Dashboard Analytics] as DashboardAnalytics
+  [Report Export Service] as ExportService
+  [Audit Logging\nCMP-022] as Audit
+  [Monitoring and Observability\nCMP-023] as Monitoring
+}
+
+package "Supporting Domain Services" {
+  [Student Management\nCMP-007] as StudentManagement
+  [Parent-Student Relationship\nCMP-009] as RelationshipManagement
+  [Course Management\nCMP-011] as CourseManagement
+  [Enrollment Management\nCMP-012] as EnrollmentManagement
+  [Attendance Management\nCMP-013] as AttendanceManagement
+  [Marks and Results\nCMP-015] as MarksManagement
+  [Learning Resource Management\nCMP-018] as ResourceManagement
+}
+
+package "Repository and Infrastructure" {
+  [Financial Repository] as FinancialRepository
+  [Communication Repository] as CommunicationRepository
+  [Reporting Read Model] as ReportingReadModel
+  database "Cloud Firestore" as Firestore
+  cloud "Cloud Functions" as CloudFunctions
+  cloud "Firebase Cloud Messaging" as FCM
+  cloud "Firebase Storage" as FirebaseStorage
+}
+
+package "External Providers" {
+  cloud "Payment Gateway" as PaymentGateway
+  cloud "Email Provider" as EmailProvider
+  cloud "SMS Provider" as SMSProvider
+}
+
+InstituteAdmin --> OperationsDashboard
+Teacher --> TeacherPanel
+Student --> StudentView
+Parent --> ParentView
+
+OperationsDashboard --> FeeManagement : IFeeService
+OperationsDashboard --> PaymentManagement : IPaymentService
+OperationsDashboard --> Reporting : IReportingService
+OperationsDashboard --> AnnouncementManagement : IAnnouncementService
+OperationsDashboard --> Monitoring : IMonitoringService
+
+TeacherPanel --> AnnouncementManagement : IAnnouncementService
+TeacherPanel --> NotificationManagement : INotificationService
+TeacherPanel --> Reporting : IReportingService
+TeacherPanel --> ResourceManagement : IResourceService
+
+StudentView --> FeeManagement : IFeeReadService
+StudentView --> PaymentManagement : IPaymentReadService
+StudentView --> AnnouncementManagement : IAnnouncementReadService
+StudentView --> NotificationManagement : INotificationReadService
+StudentView --> ResourceManagement : IResourceReadService
+
+ParentView --> RelationshipManagement : IRelationshipService
+ParentView --> FeeManagement : IFeeReadService
+ParentView --> PaymentManagement : IPaymentReadService
+ParentView --> AnnouncementManagement : IAnnouncementReadService
+ParentView --> NotificationManagement : INotificationReadService
+
+FeeManagement --> InvoiceManagement
+FeeManagement --> StudentManagement
+FeeManagement --> EnrollmentManagement
+InvoiceManagement --> FinancialRepository
+PaymentManagement --> InvoiceManagement
+PaymentManagement --> FinancialRepository
+PaymentManagement --> PaymentGateway
+PaymentManagement --> ReceiptGeneration
+PaymentManagement --> RefundReconciliation
+RefundReconciliation --> PaymentGateway
+ReceiptGeneration --> NotificationManagement
+
+AnnouncementManagement --> CourseManagement
+AnnouncementManagement --> EnrollmentManagement
+AnnouncementManagement --> NotificationManagement
+AnnouncementManagement --> CommunicationRepository
+
+NotificationManagement --> InAppNotification
+NotificationManagement --> EmailAdapter
+NotificationManagement --> SMSAdapter
+NotificationManagement --> PushAdapter
+NotificationManagement --> DeliveryTracking
+NotificationManagement --> CommunicationRepository
+
+EmailAdapter --> EmailProvider
+SMSAdapter --> SMSProvider
+PushAdapter --> FCM
+
+Reporting --> DashboardAnalytics
+Reporting --> ExportService
+Reporting --> ReportingReadModel
+Reporting --> AttendanceManagement
+Reporting --> MarksManagement
+Reporting --> PaymentManagement
+Reporting --> EnrollmentManagement
+Reporting --> CourseManagement
+
+FinancialRepository --> Firestore
+CommunicationRepository --> Firestore
+ReportingReadModel --> Firestore
+ResourceManagement --> FirebaseStorage
+
+CloudFunctions --> FeeManagement
+CloudFunctions --> PaymentManagement
+CloudFunctions --> AnnouncementManagement
+CloudFunctions --> NotificationManagement
+CloudFunctions --> Reporting
+CloudFunctions --> Audit
+CloudFunctions --> Monitoring
+
+FeeManagement --> Audit
+PaymentManagement --> Audit
+AnnouncementManagement --> Audit
+NotificationManagement --> Audit
+Reporting --> Audit
+
+PaymentManagement --> Monitoring
+NotificationManagement --> Monitoring
+Reporting --> Monitoring
+ResourceManagement --> Monitoring
+
+note right of PaymentManagement
+  Financial integrity:
+  - Idempotent payment posting
+  - Gateway verification
+  - Receipt generation
+  - Refund authorization
+  - Reconciliation and audit
+end note
+
+note right of NotificationManagement
+  Channel orchestration:
+  - In-app
+  - Email
+  - SMS
+  - Push
+  - Retry and delivery tracking
+end note
+
+note bottom of Reporting
+  Reporting has authorized read access only.
+  It must not directly modify core business data.
+end note
+@enduml
