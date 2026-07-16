@@ -1,0 +1,241 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n01 - System Component Diagram
+left to right direction
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam dpi 220
+
+actor "Super Administrator" as SuperAdmin
+actor "Institute Administrator" as InstituteAdmin
+actor Teacher
+actor Student
+actor Parent
+
+package "Presentation Layer" {
+  [Public Website\nCMP-001] as PublicWebsite
+  [Authentication UI] as AuthUI
+  [Super Admin Dashboard] as SuperDashboard
+  [Institute Admin Dashboard] as InstituteDashboard
+  [Teacher Dashboard] as TeacherDashboard
+  [Student Dashboard] as StudentDashboard
+  [Parent Portal] as ParentPortal
+}
+
+package "Identity and Access Layer" {
+  [Authentication Component\nCMP-002] as Authentication
+  [Authorization Component\nCMP-003] as Authorization
+  [Session Management] as SessionManagement
+}
+
+package "User and Institute Management" {
+  [User Management\nCMP-004] as UserManagement
+  [Institute Management\nCMP-005] as InstituteManagement
+  [Teacher Management\nCMP-006] as TeacherManagement
+  [Student Management\nCMP-007] as StudentManagement
+  [Parent Management\nCMP-008] as ParentManagement
+  [Parent-Student Relationship\nCMP-009] as RelationshipManagement
+  [Teacher Assignment\nCMP-010] as TeacherAssignment
+}
+
+package "Academic Management" {
+  [Course Management\nCMP-011] as CourseManagement
+  [Enrollment Management\nCMP-012] as EnrollmentManagement
+  [Attendance Management\nCMP-013] as AttendanceManagement
+  [Examination Management\nCMP-014] as ExaminationManagement
+  [Marks and Results\nCMP-015] as MarksManagement
+  [Learning Resource Management\nCMP-018] as ResourceManagement
+}
+
+package "Business Operations and Communication" {
+  [Fee Management\nCMP-016] as FeeManagement
+  [Payment Management\nCMP-017] as PaymentManagement
+  [Announcement Management\nCMP-019] as AnnouncementManagement
+  [Notification Orchestration\nCMP-020] as NotificationManagement
+  [Reporting and Analytics\nCMP-021] as Reporting
+  [Audit Logging\nCMP-022] as Audit
+  [Monitoring and Observability\nCMP-023] as Monitoring
+}
+
+package "Repository and Integration Layer" {
+  [Firestore Repository\nCMP-025] as FirestoreRepository
+  [Firebase Storage Adapter\nCMP-026] as StorageAdapter
+  [Firebase Authentication Adapter\nCMP-024] as AuthAdapter
+  [External Integration Adapter\nCMP-030] as ExternalAdapter
+}
+
+package "Firebase Infrastructure" {
+  cloud "Firebase Hosting\nCMP-028" as Hosting
+  cloud "Firebase Authentication" as FirebaseAuth
+  database "Cloud Firestore" as Firestore
+  cloud "Firebase Storage" as FirebaseStorage
+  cloud "Cloud Functions\nCMP-027" as CloudFunctions
+  cloud "Firebase Cloud Messaging\nCMP-029" as FCM
+}
+
+package "External Providers" {
+  cloud "Payment Gateway" as PaymentGateway
+  cloud "Email Provider" as EmailProvider
+  cloud "SMS Provider" as SMSProvider
+}
+
+SuperAdmin --> SuperDashboard
+InstituteAdmin --> InstituteDashboard
+Teacher --> TeacherDashboard
+Student --> StudentDashboard
+Parent --> ParentPortal
+
+PublicWebsite --> AnnouncementManagement : reads public announcements
+AuthUI --> Authentication
+SuperDashboard --> UserManagement
+SuperDashboard --> InstituteManagement
+InstituteDashboard --> TeacherManagement
+InstituteDashboard --> StudentManagement
+InstituteDashboard --> CourseManagement
+InstituteDashboard --> TeacherAssignment
+TeacherDashboard --> AttendanceManagement
+TeacherDashboard --> MarksManagement
+TeacherDashboard --> ResourceManagement
+TeacherDashboard --> AnnouncementManagement
+StudentDashboard --> EnrollmentManagement
+StudentDashboard --> CourseManagement
+StudentDashboard --> MarksManagement
+StudentDashboard --> ResourceManagement
+ParentPortal --> RelationshipManagement
+ParentPortal --> AttendanceManagement
+ParentPortal --> MarksManagement
+ParentPortal --> FeeManagement
+
+Authentication --> AuthAdapter
+Authentication --> SessionManagement
+Authorization --> UserManagement
+Authorization --> InstituteManagement
+
+TeacherManagement --> UserManagement
+StudentManagement --> UserManagement
+ParentManagement --> UserManagement
+RelationshipManagement --> ParentManagement
+RelationshipManagement --> StudentManagement
+TeacherAssignment --> TeacherManagement
+TeacherAssignment --> CourseManagement
+TeacherAssignment --> InstituteManagement
+
+EnrollmentManagement --> StudentManagement
+EnrollmentManagement --> CourseManagement
+AttendanceManagement --> EnrollmentManagement
+AttendanceManagement --> TeacherAssignment
+ExaminationManagement --> CourseManagement
+MarksManagement --> ExaminationManagement
+MarksManagement --> AttendanceManagement
+ResourceManagement --> CourseManagement
+ResourceManagement --> TeacherAssignment
+
+PaymentManagement --> FeeManagement
+PaymentManagement --> StudentManagement
+AnnouncementManagement --> NotificationManagement
+Reporting --> UserManagement
+Reporting --> CourseManagement
+Reporting --> EnrollmentManagement
+Reporting --> AttendanceManagement
+Reporting --> MarksManagement
+Reporting --> PaymentManagement
+
+UserManagement --> FirestoreRepository
+InstituteManagement --> FirestoreRepository
+TeacherManagement --> FirestoreRepository
+StudentManagement --> FirestoreRepository
+ParentManagement --> FirestoreRepository
+RelationshipManagement --> FirestoreRepository
+TeacherAssignment --> FirestoreRepository
+CourseManagement --> FirestoreRepository
+EnrollmentManagement --> FirestoreRepository
+AttendanceManagement --> FirestoreRepository
+ExaminationManagement --> FirestoreRepository
+MarksManagement --> FirestoreRepository
+FeeManagement --> FirestoreRepository
+PaymentManagement --> FirestoreRepository
+AnnouncementManagement --> FirestoreRepository
+NotificationManagement --> FirestoreRepository
+Reporting --> FirestoreRepository
+Audit --> FirestoreRepository
+
+ResourceManagement --> StorageAdapter
+ResourceManagement --> FirestoreRepository
+Authentication --> Audit
+Authorization --> Audit
+UserManagement --> Audit
+InstituteManagement --> Audit
+TeacherManagement --> Audit
+StudentManagement --> Audit
+ParentManagement --> Audit
+RelationshipManagement --> Audit
+TeacherAssignment --> Audit
+CourseManagement --> Audit
+EnrollmentManagement --> Audit
+AttendanceManagement --> Audit
+ExaminationManagement --> Audit
+MarksManagement --> Audit
+FeeManagement --> Audit
+PaymentManagement --> Audit
+ResourceManagement --> Audit
+AnnouncementManagement --> Audit
+
+Authentication --> Monitoring
+PaymentManagement --> Monitoring
+NotificationManagement --> Monitoring
+ResourceManagement --> Monitoring
+CloudFunctions --> Monitoring
+
+AuthAdapter --> FirebaseAuth
+FirestoreRepository --> Firestore
+StorageAdapter --> FirebaseStorage
+NotificationManagement --> FCM
+NotificationManagement --> ExternalAdapter
+PaymentManagement --> ExternalAdapter
+ExternalAdapter --> PaymentGateway
+ExternalAdapter --> EmailProvider
+ExternalAdapter --> SMSProvider
+
+Hosting --> PublicWebsite
+Hosting --> AuthUI
+Hosting --> SuperDashboard
+Hosting --> InstituteDashboard
+Hosting --> TeacherDashboard
+Hosting --> StudentDashboard
+Hosting --> ParentPortal
+
+CloudFunctions --> Authentication
+CloudFunctions --> Authorization
+CloudFunctions --> UserManagement
+CloudFunctions --> InstituteManagement
+CloudFunctions --> TeacherManagement
+CloudFunctions --> StudentManagement
+CloudFunctions --> ParentManagement
+CloudFunctions --> RelationshipManagement
+CloudFunctions --> TeacherAssignment
+CloudFunctions --> CourseManagement
+CloudFunctions --> EnrollmentManagement
+CloudFunctions --> AttendanceManagement
+CloudFunctions --> ExaminationManagement
+CloudFunctions --> MarksManagement
+CloudFunctions --> FeeManagement
+CloudFunctions --> PaymentManagement
+CloudFunctions --> ResourceManagement
+CloudFunctions --> AnnouncementManagement
+CloudFunctions --> NotificationManagement
+CloudFunctions --> Reporting
+CloudFunctions --> Audit
+
+note right of Authorization
+  Security Boundary:
+  - Role validation
+  - Institute isolation
+  - Ownership checks
+  - Least privilege
+end note
+
+note bottom of Audit
+  All privileged lifecycle changes
+  publish immutable audit records.
+end note
+@enduml
