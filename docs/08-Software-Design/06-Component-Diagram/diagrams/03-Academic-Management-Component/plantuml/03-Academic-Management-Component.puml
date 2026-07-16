@@ -1,0 +1,194 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n03 - Academic Management Component Diagram
+left to right direction
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam dpi 220
+
+actor "Institute Administrator" as InstituteAdmin
+actor Teacher
+actor Student
+actor Parent
+
+package "Presentation Layer" {
+  [Institute Academic Dashboard] as InstituteDashboard
+  [Teacher Academic Dashboard] as TeacherDashboard
+  [Student Learning Dashboard] as StudentDashboard
+  [Parent Academic View] as ParentView
+}
+
+package "Academic Management Domain" {
+  [Course Management\nCMP-011] as CourseManagement
+  [Enrollment Management\nCMP-012] as EnrollmentManagement
+  [Teacher Assignment\nCMP-010] as TeacherAssignment
+  [Attendance Management\nCMP-013] as AttendanceManagement
+  [Examination Management\nCMP-014] as ExaminationManagement
+  [Marks and Results\nCMP-015] as MarksManagement
+  [Learning Resource Management\nCMP-018] as ResourceManagement
+  [Academic Calendar and Scheduling] as AcademicCalendar
+  [Progress and Completion Tracking] as ProgressTracking
+}
+
+package "Supporting Domain Services" {
+  [Student Management\nCMP-007] as StudentManagement
+  [Teacher Management\nCMP-006] as TeacherManagement
+  [Institute Management\nCMP-005] as InstituteManagement
+  [Parent-Student Relationship\nCMP-009] as RelationshipManagement
+}
+
+package "Repository Layer" {
+  [Course Repository] as CourseRepository
+  [Enrollment Repository] as EnrollmentRepository
+  [Assignment Repository] as AssignmentRepository
+  [Attendance Repository] as AttendanceRepository
+  [Examination Repository] as ExaminationRepository
+  [Marks Repository] as MarksRepository
+  [Resource Repository] as ResourceRepository
+  [Academic Calendar Repository] as CalendarRepository
+}
+
+package "Infrastructure and Governance" {
+  database "Cloud Firestore" as Firestore
+  cloud "Firebase Storage" as FirebaseStorage
+  cloud "Cloud Functions" as CloudFunctions
+  [Authorization Component\nCMP-003] as Authorization
+  [Audit Logging\nCMP-022] as Audit
+  [Monitoring\nCMP-023] as Monitoring
+  [Notification Orchestration\nCMP-020] as Notification
+  [Reporting and Analytics\nCMP-021] as Reporting
+}
+
+InstituteAdmin --> InstituteDashboard
+Teacher --> TeacherDashboard
+Student --> StudentDashboard
+Parent --> ParentView
+
+InstituteDashboard --> CourseManagement : ICourseService
+InstituteDashboard --> TeacherAssignment : ITeacherAssignmentService
+InstituteDashboard --> EnrollmentManagement : IEnrollmentService
+InstituteDashboard --> AcademicCalendar : IAcademicCalendarService
+
+TeacherDashboard --> AttendanceManagement : IAttendanceService
+TeacherDashboard --> ExaminationManagement : IExaminationService
+TeacherDashboard --> MarksManagement : IMarksService
+TeacherDashboard --> ResourceManagement : IResourceService
+TeacherDashboard --> ProgressTracking : IProgressTrackingService
+
+StudentDashboard --> CourseManagement : ICourseReadService
+StudentDashboard --> EnrollmentManagement : IEnrollmentService
+StudentDashboard --> AttendanceManagement : IAttendanceReadService
+StudentDashboard --> MarksManagement : IResultReadService
+StudentDashboard --> ResourceManagement : IResourceReadService
+StudentDashboard --> ProgressTracking : IProgressReadService
+
+ParentView --> RelationshipManagement : IRelationshipService
+ParentView --> AttendanceManagement : IAttendanceReadService
+ParentView --> MarksManagement : IResultReadService
+ParentView --> ProgressTracking : IProgressReadService
+
+CourseManagement --> InstituteManagement
+TeacherAssignment --> TeacherManagement
+TeacherAssignment --> CourseManagement
+TeacherAssignment --> InstituteManagement
+EnrollmentManagement --> StudentManagement
+EnrollmentManagement --> CourseManagement
+AttendanceManagement --> EnrollmentManagement
+AttendanceManagement --> TeacherAssignment
+ExaminationManagement --> CourseManagement
+ExaminationManagement --> AcademicCalendar
+MarksManagement --> ExaminationManagement
+MarksManagement --> AttendanceManagement
+MarksManagement --> EnrollmentManagement
+ResourceManagement --> CourseManagement
+ResourceManagement --> TeacherAssignment
+ProgressTracking --> EnrollmentManagement
+ProgressTracking --> AttendanceManagement
+ProgressTracking --> MarksManagement
+ProgressTracking --> ResourceManagement
+
+CourseManagement --> CourseRepository
+EnrollmentManagement --> EnrollmentRepository
+TeacherAssignment --> AssignmentRepository
+AttendanceManagement --> AttendanceRepository
+ExaminationManagement --> ExaminationRepository
+MarksManagement --> MarksRepository
+ResourceManagement --> ResourceRepository
+AcademicCalendar --> CalendarRepository
+
+CourseRepository --> Firestore
+EnrollmentRepository --> Firestore
+AssignmentRepository --> Firestore
+AttendanceRepository --> Firestore
+ExaminationRepository --> Firestore
+MarksRepository --> Firestore
+ResourceRepository --> Firestore
+CalendarRepository --> Firestore
+ResourceManagement --> FirebaseStorage
+
+CloudFunctions --> CourseManagement
+CloudFunctions --> EnrollmentManagement
+CloudFunctions --> TeacherAssignment
+CloudFunctions --> AttendanceManagement
+CloudFunctions --> ExaminationManagement
+CloudFunctions --> MarksManagement
+CloudFunctions --> ResourceManagement
+CloudFunctions --> ProgressTracking
+
+Authorization --> CourseManagement
+Authorization --> EnrollmentManagement
+Authorization --> TeacherAssignment
+Authorization --> AttendanceManagement
+Authorization --> ExaminationManagement
+Authorization --> MarksManagement
+Authorization --> ResourceManagement
+
+CourseManagement --> Audit
+EnrollmentManagement --> Audit
+TeacherAssignment --> Audit
+AttendanceManagement --> Audit
+ExaminationManagement --> Audit
+MarksManagement --> Audit
+ResourceManagement --> Audit
+
+EnrollmentManagement --> Notification
+AttendanceManagement --> Notification
+ExaminationManagement --> Notification
+MarksManagement --> Notification
+ResourceManagement --> Notification
+
+AttendanceManagement --> Monitoring
+ExaminationManagement --> Monitoring
+MarksManagement --> Monitoring
+ResourceManagement --> Monitoring
+
+Reporting --> CourseManagement
+Reporting --> EnrollmentManagement
+Reporting --> AttendanceManagement
+Reporting --> MarksManagement
+Reporting --> ProgressTracking
+
+note right of TeacherAssignment
+  Validates:
+  - Teacher qualification
+  - Institute membership
+  - Workload limits
+  - Timetable conflicts
+  - Course scope
+end note
+
+note right of MarksManagement
+  Results require:
+  - Valid examination
+  - Valid enrollment
+  - Completed marks
+  - Review and approval
+  - Controlled publication
+end note
+
+note bottom of ResourceManagement
+  Resource files are stored in
+  Firebase Storage. Metadata and
+  access scope remain in Firestore.
+end note
+@enduml
