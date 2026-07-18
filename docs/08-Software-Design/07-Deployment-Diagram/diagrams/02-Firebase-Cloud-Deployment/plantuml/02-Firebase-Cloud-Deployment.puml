@@ -1,0 +1,107 @@
+@startuml
+title TechmoEDU Smart Learning Platform\nDEP-02 – Firebase Cloud Deployment
+left to right direction
+skinparam shadowing false
+skinparam dpi 180
+skinparam roundcorner 12
+
+node "Client Browser\n<<executionEnvironment>>" as browser
+
+rectangle "FIREBASE CLOUD PLATFORM" {
+  node "FBC-001\n<<cloudService>>\nFirebase Hosting" as hosting {
+    artifact "React Web Application Bundle" as webapp
+    artifact "Hosting Configuration" as hostingConfig
+  }
+
+  node "FBC-002\n<<identityService>>\nFirebase Authentication" as auth {
+    artifact "Identity Providers"
+    artifact "ID Tokens"
+    artifact "Custom Claims"
+  }
+
+  rectangle "CLOUD FUNCTIONS RUNTIME" {
+    node "FBC-003\nHTTPS Callable Functions" as callable
+    node "FBC-004\nHTTP Functions" as httpfn
+    node "FBC-005\nFirestore Trigger Functions" as firetrigger
+    node "FBC-006\nStorage Trigger Functions" as storagetrigger
+    node "FBC-007\nScheduled Functions" as scheduled
+  }
+
+  database "FBC-008\n<<database>>\nCloud Firestore" as firestore {
+    artifact "Collections and Documents"
+    artifact "Security Rules"
+    artifact "Indexes"
+  }
+
+  folder "FBC-009\n<<objectStorage>>\nFirebase Storage" as storage {
+    artifact "Learning Resources"
+    artifact "Profile Images"
+    artifact "Assignment Files"
+    artifact "Storage Security Rules"
+  }
+
+  node "FBC-010\n<<messagingService>>\nFirebase Cloud Messaging" as fcm
+  node "FBC-011\n<<analyticsService>>\nFirebase Analytics" as analytics
+  node "FBC-012\n<<monitoringService>>\nCloud Logging" as logging
+  node "FBC-013\n<<monitoringService>>\nPerformance Monitoring" as performance
+  node "FBC-014\n<<backupService>>\nBackup and Export Service" as backup
+  node "FBC-015\n<<securityService>>\nIAM and Service Accounts" as iam
+}
+
+rectangle "DEVOPS TRUST ZONE" {
+  node "GitHub Repository" as github
+  node "FBC-016\n<<executionEnvironment>>\nGitHub Actions / CI-CD" as cicd
+  node "Firebase CLI" as cli
+}
+
+node "External APIs\nPayment / Email / SMS" as external
+
+browser --> hosting : HTTPS / TLS
+browser --> auth : Firebase Auth SDK
+browser --> callable : Firebase Functions SDK
+browser --> firestore : Firestore SDK\nSecurity Rules
+browser --> storage : Storage SDK\nSecurity Rules
+browser --> analytics : Approved events
+browser --> performance : Performance telemetry
+
+auth --> callable : Verified ID Token
+auth --> httpfn : Verified ID Token
+
+callable --> firestore : Firebase Admin SDK
+callable --> storage : Firebase Admin SDK
+callable --> fcm : Notification requests
+
+httpfn --> external : Authenticated HTTPS APIs
+external --> httpfn : Signed webhooks
+
+firestore --> firetrigger : Document events
+storage --> storagetrigger : Object events
+scheduled --> firestore : Scheduled maintenance
+scheduled --> storage : Scheduled processing
+
+firetrigger --> fcm : Event notifications
+storagetrigger --> firestore : File metadata updates
+scheduled --> fcm : Reminder notifications
+
+callable --> logging : Structured logs
+httpfn --> logging : Structured logs
+firetrigger --> logging : Structured logs
+storagetrigger --> logging : Structured logs
+scheduled --> logging : Structured logs
+
+firestore --> backup : Scheduled export
+storage --> backup : Protected backup
+
+iam ..> callable : Least privilege
+iam ..> httpfn : Least privilege
+iam ..> firetrigger : Least privilege
+iam ..> storagetrigger : Least privilege
+iam ..> scheduled : Least privilege
+
+github --> cicd : Git trigger
+cicd --> cli : Build, test, approve
+cli --> hosting : Deploy application
+cli --> callable : Deploy functions
+cli --> firestore : Deploy rules and indexes
+cli --> storage : Deploy Storage Rules
+@enduml
