@@ -1,0 +1,67 @@
+@startuml
+title TechmoEDU Smart Learning Platform\nDEP-01 – Overall Deployment Diagram
+left to right direction
+skinparam shadowing false
+skinparam dpi 180
+skinparam roundcorner 12
+
+rectangle "UNTRUSTED CLIENT ZONE" {
+  node "NODE-001\n<<device>>\nClient Device" as client {
+    node "NODE-002\n<<executionEnvironment>>\nWeb Browser" as browser
+  }
+}
+cloud "NODE-003\n<<network>>\nPublic Internet" as internet
+cloud "NODE-004\n<<network>>\nDNS and Edge Delivery" as edge
+
+rectangle "FIREBASE MANAGED TRUST ZONE" {
+  node "NODE-005\n<<cloudService>>\nFirebase Hosting" as hosting {
+    artifact "Web Application Bundle"
+  }
+  node "NODE-006\n<<identityService>>\nFirebase Authentication" as auth
+  node "NODE-007\n<<executionEnvironment>>\nCloud Functions" as functions
+  database "NODE-008\n<<database>>\nCloud Firestore" as firestore
+  folder "NODE-009\n<<objectStorage>>\nFirebase Storage" as storage
+  node "NODE-010\n<<cloudService>>\nFirebase Cloud Messaging" as fcm
+}
+
+rectangle "EXTERNAL PROVIDER ZONE" {
+  node "NODE-011\nPayment Gateway" as payment
+  node "NODE-012\nEmail Provider" as email
+  node "NODE-013\nSMS Provider" as sms
+}
+
+rectangle "OBSERVABILITY AND RECOVERY" {
+  node "NODE-014\nLogging and Monitoring" as monitor
+  node "NODE-015\nAnalytics" as analytics
+  node "NODE-016\nBackup Storage" as backup
+}
+
+rectangle "DEVOPS TRUST ZONE" {
+  node "NODE-017\nGitHub Repository" as github
+  node "NODE-018\nCI/CD Pipeline" as cicd
+}
+
+browser --> internet : HTTPS / TLS
+internet --> edge : DNS + HTTPS
+edge --> hosting : HTTPS / CDN
+browser --> auth : Firebase Auth SDK
+browser --> functions : HTTPS Callable / REST
+browser --> firestore : Firestore SDK / Rules
+browser --> storage : Storage SDK / Rules
+functions --> firestore : Firebase Admin SDK
+functions --> storage : Firebase Admin SDK
+functions --> fcm : Firebase Admin SDK
+functions --> payment : Authenticated HTTPS API
+payment --> functions : Signed Webhook
+functions --> email : Authenticated HTTPS API
+functions --> sms : Authenticated HTTPS API
+functions --> monitor : Structured logs / metrics
+functions --> analytics : Approved events
+firestore --> backup : Scheduled backup
+storage --> backup : Protected backup
+github --> cicd : Git trigger
+cicd --> hosting : Firebase CLI
+cicd --> functions : Firebase CLI
+cicd --> firestore : Rules / indexes
+cicd --> storage : Storage Rules
+@enduml
