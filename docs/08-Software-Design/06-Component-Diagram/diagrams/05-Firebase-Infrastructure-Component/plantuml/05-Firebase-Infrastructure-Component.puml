@@ -1,0 +1,168 @@
+@startuml
+title TechmoEDU Smart Learning Platform\n05 - Firebase Infrastructure Component Diagram
+left to right direction
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam dpi 220
+
+actor "Web User" as User
+actor "Developer / DevOps" as DevOps
+actor "System Administrator" as SysAdmin
+
+package "Client and Delivery Layer" {
+  [Web Application] as WebApp
+  [Public Website] as PublicWebsite
+  [Admin Dashboards] as AdminDashboards
+  [Teacher Dashboard] as TeacherDashboard
+  [Student Dashboard] as StudentDashboard
+  [Parent Portal] as ParentPortal
+  cloud "Firebase Hosting\nCMP-028" as Hosting
+}
+
+package "Identity and Security Infrastructure" {
+  cloud "Firebase Authentication" as FirebaseAuth
+  [Firebase Authentication Adapter\nCMP-024] as AuthAdapter
+  [Authorization Enforcement] as Authorization
+  [Firestore Security Rules] as FirestoreRules
+  [Storage Security Rules] as StorageRules
+  [Secret and Environment Configuration] as SecretConfig
+}
+
+package "Application Runtime" {
+  cloud "Cloud Functions\nCMP-027" as CloudFunctions
+  [HTTPS Callable Functions] as HTTPSFunctions
+  [Firestore Trigger Functions] as FirestoreTriggers
+  [Storage Trigger Functions] as StorageTriggers
+  [Scheduled Functions] as ScheduledFunctions
+  [Background Job Processor] as BackgroundJobs
+}
+
+package "Data and File Infrastructure" {
+  database "Cloud Firestore" as Firestore
+  cloud "Firebase Storage" as FirebaseStorage
+  [Firestore Repository\nCMP-025] as FirestoreRepository
+  [Firebase Storage Adapter\nCMP-026] as StorageAdapter
+  [Backup and Restore Service] as BackupRestore
+}
+
+package "Messaging and Integration" {
+  cloud "Firebase Cloud Messaging\nCMP-029" as FCM
+  [Notification Orchestration\nCMP-020] as Notification
+  [External Integration Adapter\nCMP-030] as ExternalAdapter
+  cloud "Payment Gateway" as PaymentGateway
+  cloud "Email Provider" as EmailProvider
+  cloud "SMS Provider" as SMSProvider
+}
+
+package "Observability and Governance" {
+  [Audit Logging\nCMP-022] as Audit
+  [Monitoring and Observability\nCMP-023] as Monitoring
+  [Error Reporting] as ErrorReporting
+  [Usage and Performance Metrics] as Metrics
+  [Deployment Pipeline] as DeploymentPipeline
+}
+
+User --> Hosting
+Hosting --> WebApp
+Hosting --> PublicWebsite
+Hosting --> AdminDashboards
+Hosting --> TeacherDashboard
+Hosting --> StudentDashboard
+Hosting --> ParentPortal
+
+WebApp --> AuthAdapter : IAuthenticationProvider
+AdminDashboards --> AuthAdapter
+TeacherDashboard --> AuthAdapter
+StudentDashboard --> AuthAdapter
+ParentPortal --> AuthAdapter
+AuthAdapter --> FirebaseAuth
+
+WebApp --> HTTPSFunctions : HTTPS / Callable
+AdminDashboards --> HTTPSFunctions
+TeacherDashboard --> HTTPSFunctions
+StudentDashboard --> HTTPSFunctions
+ParentPortal --> HTTPSFunctions
+
+HTTPSFunctions --> CloudFunctions
+FirestoreTriggers --> CloudFunctions
+StorageTriggers --> CloudFunctions
+ScheduledFunctions --> CloudFunctions
+BackgroundJobs --> CloudFunctions
+
+CloudFunctions --> Authorization
+Authorization --> FirebaseAuth
+Authorization --> FirestoreRules
+Authorization --> StorageRules
+CloudFunctions --> SecretConfig
+
+CloudFunctions --> FirestoreRepository
+CloudFunctions --> StorageAdapter
+FirestoreRepository --> Firestore
+StorageAdapter --> FirebaseStorage
+
+Firestore --> FirestoreTriggers
+FirebaseStorage --> StorageTriggers
+ScheduledFunctions --> Notification
+ScheduledFunctions --> BackupRestore
+BackgroundJobs --> Notification
+
+Notification --> FCM
+Notification --> ExternalAdapter
+ExternalAdapter --> PaymentGateway
+ExternalAdapter --> EmailProvider
+ExternalAdapter --> SMSProvider
+
+CloudFunctions --> Audit
+CloudFunctions --> Monitoring
+Firestore --> Monitoring
+FirebaseStorage --> Monitoring
+FirebaseAuth --> Monitoring
+Hosting --> Monitoring
+Monitoring --> ErrorReporting
+Monitoring --> Metrics
+
+BackupRestore --> Firestore
+BackupRestore --> FirebaseStorage
+
+DevOps --> DeploymentPipeline
+DeploymentPipeline --> Hosting
+DeploymentPipeline --> CloudFunctions
+DeploymentPipeline --> FirestoreRules
+DeploymentPipeline --> StorageRules
+DeploymentPipeline --> SecretConfig
+
+SysAdmin --> Monitoring
+SysAdmin --> BackupRestore
+SysAdmin --> Audit
+
+note right of FirestoreRules
+  Enforces:
+  - Authentication
+  - Role and institute scope
+  - Ownership
+  - Read/write constraints
+  - Deny by default
+end note
+
+note right of StorageRules
+  Enforces:
+  - Authenticated upload
+  - File ownership
+  - Course visibility
+  - Quarantine restrictions
+  - Size and metadata policy
+end note
+
+note bottom of CloudFunctions
+  Trusted server-side boundary for:
+  business validation, lifecycle changes,
+  transactions, schedules, retries,
+  reconciliation, and audit.
+end note
+
+note bottom of DeploymentPipeline
+  Separate environments:
+  Development / Testing / Staging / Production
+end note
+@enduml
