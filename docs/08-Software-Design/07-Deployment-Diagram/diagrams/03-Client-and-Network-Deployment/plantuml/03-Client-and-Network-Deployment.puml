@@ -1,0 +1,73 @@
+@startuml
+title TechmoEDU Smart Learning Platform\nDEP-03 – Client and Network Deployment
+left to right direction
+skinparam shadowing false
+skinparam dpi 180
+skinparam roundcorner 12
+
+rectangle "CLIENT TRUST ZONE" {
+  device "NET-001\nDesktop Client" as desktop
+  device "NET-002\nLaptop Client" as laptop
+  device "NET-003\nTablet Client" as tablet
+  device "NET-004\nMobile Client" as mobile
+
+  node "NET-005\n<<executionEnvironment>>\nModern Web Browser" as browser {
+    artifact "TechmoEDU Web Application"
+    artifact "Firebase SDK"
+  }
+}
+
+rectangle "LOCAL NETWORK ZONE" {
+  node "NET-006\n<<network>>\nLAN / Wi-Fi / Mobile Network" as lan
+  node "NET-007\n<<networkDevice>>\nRouter / Firewall" as router
+}
+
+cloud "NET-008\n<<networkService>>\nDNS Service" as dns
+cloud "NET-009\n<<network>>\nPublic Internet" as internet
+cloud "NET-010\n<<cloudService>>\nCDN Edge" as cdn
+
+rectangle "FIREBASE CLOUD TRUST ZONE" {
+  node "NET-011\n<<cloudService>>\nFirebase Hosting" as hosting
+  node "NET-012\n<<identityService>>\nFirebase Authentication" as auth
+  node "NET-013\n<<executionEnvironment>>\nCloud Functions" as functions
+  database "NET-014\n<<database>>\nCloud Firestore" as firestore
+  folder "NET-015\n<<objectStorage>>\nFirebase Storage" as storage
+  node "NET-016\n<<messagingService>>\nFirebase Cloud Messaging" as fcm
+
+  node "NET-017\nCloud Logging" as logging
+  node "NET-018\nPerformance Monitoring" as performance
+  node "NET-019\nFirebase Analytics" as analytics
+}
+
+desktop --> browser : Local execution
+laptop --> browser : Local execution
+tablet --> browser : Local execution
+mobile --> browser : Local execution
+
+browser --> lan : Wi-Fi / Ethernet / Mobile Data
+lan --> router : IP traffic
+router --> dns : DNS query
+dns --> router : Domain resolution
+router --> internet : HTTPS / TLS 1.2+
+internet --> cdn : Secure request
+cdn --> hosting : Cache miss / origin request
+hosting --> browser : HTML / CSS / JS / Assets
+
+browser --> auth : Firebase Auth SDK\nHTTPS
+auth --> browser : Verified ID token
+
+browser --> functions : Functions SDK\nHTTPS + ID token
+browser --> firestore : Firestore SDK\nSecurity Rules
+browser --> storage : Storage SDK\nSecurity Rules
+browser --> fcm : Registration token / notifications
+
+functions --> firestore : Firebase Admin SDK
+functions --> storage : Firebase Admin SDK
+functions --> fcm : Notification requests
+
+browser --> performance : Performance telemetry
+browser --> analytics : Approved usage events
+hosting --> logging : Hosting logs
+functions --> logging : Structured logs
+auth --> logging : Security events
+@enduml
